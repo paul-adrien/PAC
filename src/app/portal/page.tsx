@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/store/auth/auth.store';
 import { useApplicationsStore } from '@/lib/store/applications/applications.store';
 import { useTranslation } from '@/lib/i18n';
-import { ApplicationCard } from '../../components/applications/ApplicationCard';
+import { ApplicationCard } from './_components/ApplicationCard';
 import { Text } from '@/components/ui/text';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
@@ -17,12 +17,12 @@ export default function PortalPage() {
   const loading = useApplicationsStore(s => s.loading);
   const error = useApplicationsStore(s => s.error);
   const fetchAll = useApplicationsStore(s => s.fetchAll);
-   const removeApplication = useApplicationsStore(s => s.remove);
+  const removeApplication = useApplicationsStore(s => s.remove);
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const appToDelete = deleteId ? apps.find(a => a.id === deleteId) ?? null : null;
+  const appToDelete = deleteId ? (apps.find(a => a.id === deleteId) ?? null) : null;
 
   const handleConfirmDelete = async () => {
     if (!deleteId) return;

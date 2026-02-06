@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { AuthCard } from '@/components/auth/AuthCard';
+import { AuthCard } from '@/app/auth/_components/AuthCard';
 import { useAuthStore } from '@/lib/store/auth/auth.store';
 import { Input } from '@/components/ui/input';
 import { Controller, useForm } from 'react-hook-form';

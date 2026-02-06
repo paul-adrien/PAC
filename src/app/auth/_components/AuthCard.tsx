@@ -1,4 +1,5 @@
 import { Text } from '@/components/ui/text';
+
 type Props = {
   title: string;
   subtitle?: string;

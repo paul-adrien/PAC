@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { AuthCard } from '@/components/auth/AuthCard';
+import { AuthCard } from '@/app/auth/_components/AuthCard';
 import { useAuthStore } from '@/lib/store/auth/auth.store';
 import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/lib/i18n';
