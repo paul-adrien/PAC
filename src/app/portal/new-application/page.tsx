@@ -9,11 +9,13 @@ import { useAuthStore } from '@/lib/store/auth/auth.store';
 import { newApplicationSchema, todayIso } from './schema';
 import type { NewApplicationForm } from './schema';
 import { NewApplicationFormView } from './NewApplicationFormView';
-
+import { useRouter } from 'next/navigation';
 export type { NewApplicationForm } from './schema';
 
 export default function NewApplicationPage() {
   const { t } = useTranslation();
+  const router = useRouter();
+
   const create = useApplicationsStore(s => s.create);
   const userId = useAuthStore(s => s.user?.id);
 
@@ -33,7 +35,7 @@ export default function NewApplicationPage() {
   const onSubmit = (data: NewApplicationForm) => {
     if (userId) {
       create(data, userId).then(() => {
-        console.log('created');
+        router.push('/portal');
       });
     }
   };
@@ -41,9 +43,7 @@ export default function NewApplicationPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <section className="rounded-2xl border border-orange-200/60 bg-white/90 px-6 py-8 shadow-lg backdrop-blur">
-        <h1 className="mb-4 text-2xl font-semibold text-gray-900">
-          {t('portal.new.title')}
-        </h1>
+        <h1 className="mb-4 text-2xl font-semibold text-gray-900">{t('portal.new.title')}</h1>
         <NewApplicationFormView
           control={control}
           errors={errors}

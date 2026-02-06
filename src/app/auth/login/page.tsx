@@ -7,6 +7,7 @@ import { AuthCard } from '@/components/auth/AuthCard';
 import { useAuthStore } from '@/lib/store/auth/auth.store';
 import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/lib/i18n';
+import { Text } from '@/components/ui/text';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,12 +31,13 @@ export default function LoginPage() {
   return (
     <AuthCard title={t('auth.login.title')} subtitle={t('auth.login.subtitle')}>
       {showConfirmEmail && (
-        <p
-          className="mb-4 rounded-md bg-green-50 border border-green-200 px-3 py-2 text-sm text-green-800"
+        <Text
+          variant="sm"
+          className="mb-4 rounded-md bg-green-50 border border-green-200 px-3 py-2 text-green-800"
           role="status"
         >
           {t('auth.login.confirmEmailMessage')}
-        </p>
+        </Text>
       )}
       <form className="space-y-4" onSubmit={handleLogin}>
         <Input
@@ -59,15 +61,15 @@ export default function LoginPage() {
           {loading ? '...' : t('auth.login.submit')}
         </button>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <Text variant="danger">{error}</Text>}
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-600">
+      <Text variant="sm" className="mt-6 text-center text-gray-600">
         {t('auth.login.noAccount')}{' '}
         <Link href="/auth/register" className="font-medium text-orange-800 hover:underline">
           {t('auth.login.createAccount')}
         </Link>
-      </p>
+      </Text>
     </AuthCard>
   );
 }

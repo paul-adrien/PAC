@@ -29,6 +29,9 @@ export function PortalHeader() {
 
       <nav className="flex items-center gap-1" aria-label={t('portal.header.navLabel')}>
         {navItems.map(({ href, labelKey }) => {
+          console.log('href', href);
+          console.log('pathname', pathname);
+          console.log('isActive', pathname === href);
           const isActive = pathname === href || (href !== '/portal' && pathname.startsWith(href));
           return (
             <Link

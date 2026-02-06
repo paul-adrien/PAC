@@ -7,6 +7,7 @@ import {
   type FieldValues,
   Controller,
 } from 'react-hook-form';
+import { Text } from '@/components/ui/text';
 
 type FormFieldProps<T extends FieldValues> = {
   control: Control<T>;
@@ -36,9 +37,9 @@ export function FormField<T extends FieldValues>({
         render={({ field }) => render(field) as React.ReactElement}
       />
       {error && (
-        <p className="text-sm text-red-600" role="alert">
+        <Text variant="danger" role="alert">
           {error}
-        </p>
+        </Text>
       )}
     </div>
   );

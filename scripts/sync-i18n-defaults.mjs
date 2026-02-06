@@ -91,7 +91,6 @@ function saveJson(path, obj) {
 function main() {
   const defaults = extractAllDefaults();
   if (defaults.size === 0) {
-    console.log('Aucun t(..., { defaultValue }) trouvé.');
     return;
   }
 
@@ -116,9 +115,6 @@ function main() {
   if (addedFr > 0 || addedEn > 0) {
     saveJson(frPath, fr);
     saveJson(enPath, en);
-    console.log(`Clés ajoutées: fr.json ${addedFr}, en.json ${addedEn}`);
-  } else {
-    console.log('Aucune clé manquante.');
   }
 }
 

@@ -7,6 +7,7 @@ import { useAuthStore } from '@/lib/store/auth/auth.store';
 import { Input } from '@/components/ui/input';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from '@/lib/i18n';
+import { Text } from '@/components/ui/text';
 
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -75,9 +76,9 @@ export default function RegisterPage() {
             )}
           />
           {errors.password && (
-            <p className="mt-1 text-sm text-red-600" role="alert">
+            <Text variant="danger" className="mt-1" role="alert">
               {errors.password.message}
-            </p>
+            </Text>
           )}
         </div>
 
@@ -101,9 +102,9 @@ export default function RegisterPage() {
             )}
           />
           {errors.confirmPassword && (
-            <p className="mt-1 text-sm text-red-600" role="alert">
+            <Text variant="danger" className="mt-1" role="alert">
               {errors.confirmPassword.message}
-            </p>
+            </Text>
           )}
         </div>
 
@@ -111,7 +112,12 @@ export default function RegisterPage() {
           control={control}
           name="lastName"
           render={({ field: { value, onChange } }) => (
-            <Input type="text" placeholder={t('auth.register.lastName')} value={value} onChange={onChange} />
+            <Input
+              type="text"
+              placeholder={t('auth.register.lastName')}
+              value={value}
+              onChange={onChange}
+            />
           )}
         />
 
@@ -119,7 +125,12 @@ export default function RegisterPage() {
           control={control}
           name="firstName"
           render={({ field: { value, onChange } }) => (
-            <Input type="text" placeholder={t('auth.register.firstName')} value={value} onChange={onChange} />
+            <Input
+              type="text"
+              placeholder={t('auth.register.firstName')}
+              value={value}
+              onChange={onChange}
+            />
           )}
         />
 
@@ -130,15 +141,15 @@ export default function RegisterPage() {
           {loading ? '...' : t('auth.register.submit')}
         </button>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <Text variant="danger">{error}</Text>}
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-600">
+      <Text variant="sm" className="mt-6 text-center text-gray-600">
         {t('auth.register.hasAccount')}{' '}
         <Link href="/auth/login" className="font-medium text-orange-800 hover:underline">
           {t('auth.register.signIn')}
         </Link>
-      </p>
+      </Text>
     </AuthCard>
   );
 }

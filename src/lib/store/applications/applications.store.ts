@@ -14,6 +14,7 @@ type ApplicationsState = {
   fetchAll: (userId: UUID) => Promise<void>;
   create: (input: NewApplicationForm, userId: string) => Promise<void>;
   setStatus: (id: UUID, status: ApplicationStatus) => Promise<void>;
+  update: (id: UUID, input: NewApplicationForm) => Promise<void>;
   remove: (id: UUID) => Promise<void>;
 };
 
@@ -57,6 +58,29 @@ export const useApplicationsStore = create<ApplicationsState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const updated = await applicationsService.update({ id, status });
+      set({
+        applications: get().applications.map(a => (a.id === id ? updated : a)),
+        loading: false,
+      });
+    } catch (e: any) {
+      set({ loading: false, error: e?.message ?? 'update failed' });
+    }
+  },
+
+  update: async (id, input) => {
+    set({ loading: true, error: null });
+    try {
+      const updated = await applicationsService.update({
+        id,
+        company: input.company,
+        title: input.title,
+        location: input.location ?? null,
+        jobUrl: input.jobUrl ?? null,
+        status: input.status,
+        notes: input.notes ?? null,
+        stars: input.stars ?? null,
+        appliedAt: input.appliedAt ?? null,
+      });
       set({
         applications: get().applications.map(a => (a.id === id ? updated : a)),
         loading: false,

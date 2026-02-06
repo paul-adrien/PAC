@@ -10,6 +10,8 @@ import { StarRating } from '@/components/ui/star-rating';
 import { FormField } from '@/components/ui/form-field';
 import { todayIso } from './schema';
 import type { NewApplicationForm } from './schema';
+import { useApplicationsStore } from '@/lib/store/applications/applications.store';
+import { Text } from '@/components/ui/text';
 
 type Props = {
   control: Control<NewApplicationForm>;
@@ -27,6 +29,7 @@ export function NewApplicationFormView({
   handleSubmit,
 }: Props) {
   const { t } = useTranslation();
+  const loading = useApplicationsStore(s => s.loading);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -62,12 +65,7 @@ export function NewApplicationFormView({
           name="status"
           label={t('portal.new.status', { defaultValue: 'Status' })}
           render={({ value, onChange, onBlur }) => (
-            <Select
-              id="status"
-              value={(value ?? '') as string}
-              onChange={onChange}
-              onBlur={onBlur}
-            >
+            <Select id="status" value={(value ?? '') as string} onChange={onChange} onBlur={onBlur}>
               {APPLICATION_STATUSES.map(status => (
                 <option key={status} value={status}>
                   {t(`portal.new.status.${status}`, { defaultValue: status })}
@@ -155,13 +153,17 @@ export function NewApplicationFormView({
         )}
       />
 
-      <button
-        type="submit"
-        disabled={!isValid}
-        className="w-50 rounded-md bg-orange-900 hover:bg-orange-800 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-      >
-        {t('portal.new.submit', { defaultValue: 'Submit' })}
-      </button>
+      {loading ? (
+        <Text variant="muted">{t('common.loading', { defaultValue: 'Loading...' })}</Text>
+      ) : (
+        <button
+          type="submit"
+          disabled={!isValid || loading}
+          className="w-50 rounded-md bg-orange-900 hover:bg-orange-800 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+        >
+          {t('portal.new.submit', { defaultValue: 'Submit' })}
+        </button>
+      )}
     </form>
   );
 }
