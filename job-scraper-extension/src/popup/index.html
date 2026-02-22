@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Job Scraper</title>
+  </head>
+  <body>
+    <main class="wrap">
+      <h1>Job Scraper</h1>
+
+      <p class="label">Domaine onglet actif</p>
+      <p id="domain" class="value">...</p>
+
+      <div class="row">
+        <label for="pagesInput" class="label-inline">Pages</label>
+        <input id="pagesInput" type="number" min="1" max="15" step="1" value="8" />
+      </div>
+
+      <div class="actions">
+        <button id="autoBtn" type="button">Auto-scroll + scan</button>
+        <button id="scanBtn" type="button">Scan page</button>
+        <button id="exportBtn" type="button">Export JSON</button>
+        <button id="clearBtn" type="button">Clear</button>
+      </div>
+
+      <p class="label">Offres trouvées</p>
+      <p id="count" class="value">0</p>
+
+      <pre id="preview" class="preview"></pre>
+    </main>
+
+    <script type="module" src="./popup.ts"></script>
+  </body>
+</html>

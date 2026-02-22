@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Job Scraper MVP",
+  "version": "0.0.1",
+  "action": {
+    "default_title": "Job Scraper",
+    "default_popup": "src/popup/index.html"
+  },
+  "permissions": ["tabs", "activeTab", "storage"],
+  "host_permissions": [
+    "https://www.linkedin.com/*",
+    "https://www.welcometothejungle.com/*",
+    "https://www.indeed.com/*",
+    "https://fr.indeed.com/*",
+    "https://*.indeed.com/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.linkedin.com/*",
+        "https://www.welcometothejungle.com/*",
+        "https://www.indeed.com/*",
+        "https://fr.indeed.com/*",
+        "https://*.indeed.com/*"
+      ],
+      "js": ["content/content-script.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
