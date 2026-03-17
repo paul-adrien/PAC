@@ -51,5 +51,15 @@
   "portal.page.emptyHint": "Click « New application » to create one.",
   "portal.page.emptyTitle": "No applications",
   "portal.page.myApplications": "My applications",
-  "portal.page.newApplication": "New application"
+  "portal.page.newApplication": "New application",
+  "portal.header.importJobs": "Import jobs",
+  "jobs.import.title": "Import jobs",
+  "jobs.import.subtitle": "Upload a JSON file exported from the Chrome extension.",
+  "jobs.import.fileLabel": "JSON file",
+  "jobs.import.submit": "Import",
+  "jobs.import.success": "Import complete",
+  "jobs.import.totalInFile": "Total in file",
+  "jobs.import.uniqueInFile": "Unique (after dedup)",
+  "jobs.import.inserted": "New jobs inserted",
+  "jobs.import.updatedLastSeen": "Already existing (last_seen updated)"
 }

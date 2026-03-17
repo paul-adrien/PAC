@@ -51,5 +51,15 @@
   "portal.page.emptyHint": "Clique sur « Nouvelle candidature » pour en créer une.",
   "portal.page.emptyTitle": "Aucune candidature",
   "portal.page.myApplications": "Mes candidatures",
-  "portal.page.newApplication": "Nouvelle candidature"
+  "portal.page.newApplication": "Nouvelle candidature",
+  "portal.header.importJobs": "Importer des offres",
+  "jobs.import.title": "Importer des offres",
+  "jobs.import.subtitle": "Upload un fichier JSON exporté depuis l'extension Chrome.",
+  "jobs.import.fileLabel": "Fichier JSON",
+  "jobs.import.submit": "Importer",
+  "jobs.import.success": "Import terminé",
+  "jobs.import.totalInFile": "Total dans le fichier",
+  "jobs.import.uniqueInFile": "Uniques (après dédup)",
+  "jobs.import.inserted": "Nouvelles offres insérées",
+  "jobs.import.updatedLastSeen": "Déjà existantes (last_seen mis à jour)"
 }

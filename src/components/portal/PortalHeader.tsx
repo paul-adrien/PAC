@@ -9,6 +9,7 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 const navItems = [
   { href: '/portal', labelKey: 'portal.header.myApplications' as const },
   { href: '/portal/new-application', labelKey: 'portal.header.newApplication' as const },
+  { href: '/portal/jobs/import', labelKey: 'portal.header.importJobs' as const },
 ] as const;
 
 export function PortalHeader() {
@@ -29,9 +30,6 @@ export function PortalHeader() {
 
       <nav className="flex items-center gap-1" aria-label={t('portal.header.navLabel')}>
         {navItems.map(({ href, labelKey }) => {
-          console.log('href', href);
-          console.log('pathname', pathname);
-          console.log('isActive', pathname === href);
           const isActive = pathname === href || (href !== '/portal' && pathname.startsWith(href));
           return (
             <Link

@@ -1,6 +1,4 @@
-import type { JobInput } from './schema';
-
-const collapseSpaces = (s: string) => s.replace(/\s+/g, ' ').trim();
+const collapseSpaces = (s: string) => s.replaceAll(/\s+/g, ' ').trim();
 
 export function normalizeText(s: string): string {
   return collapseSpaces(s);
