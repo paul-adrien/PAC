@@ -12,14 +12,12 @@ export const JobInputSchema = z.object({
 
 export const JobInputArraySchema = z.array(JobInputSchema);
 
-/** Format wrapper de l'extension Chrome : { exportedAt, count, offers: [...] } */
 export const JobExportFileSchema = z.object({
   exportedAt: z.string().datetime(),
   count: z.number(),
   offers: JobInputArraySchema,
 });
 
-/** Accepte les deux formats : tableau direct ou objet { offers } */
 export function parseJobExportJSON(jsonText: string): z.infer<typeof JobInputSchema>[] {
   const parsed = JSON.parse(jsonText);
 
@@ -31,21 +29,14 @@ export function parseJobExportJSON(jsonText: string): z.infer<typeof JobInputSch
   return file.offers;
 }
 
-// Ce qu'on stocke réellement en DB (normalisé)
 export const JobNormalizedSchema = z.object({
   title: z.string().min(1),
   company: z.string().min(1),
   location: z.string().nullable(),
-
   source: z.string().min(1),
   source_url: z.url(),
-
   scraped_at: z.iso.datetime().nullable(),
-
-  // fingerprint computed
   fingerprint: z.string().min(1),
-
-  // raw optional
   raw: z.unknown().optional(),
 });
 

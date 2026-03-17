@@ -52,7 +52,7 @@
   "portal.page.emptyTitle": "No applications",
   "portal.page.myApplications": "My applications",
   "portal.page.newApplication": "New application",
-  "portal.header.importJobs": "Import jobs",
+  "portal.header.jobs": "Jobs",
   "jobs.import.title": "Import jobs",
   "jobs.import.subtitle": "Upload a JSON file exported from the Chrome extension.",
   "jobs.import.fileLabel": "JSON file",

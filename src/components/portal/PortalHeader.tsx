@@ -9,7 +9,7 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 const navItems = [
   { href: '/portal', labelKey: 'portal.header.myApplications' as const },
   { href: '/portal/new-application', labelKey: 'portal.header.newApplication' as const },
-  { href: '/portal/jobs/import', labelKey: 'portal.header.importJobs' as const },
+  { href: '/portal/jobs', labelKey: 'portal.header.jobs' as const },
 ] as const;
 
 export function PortalHeader() {

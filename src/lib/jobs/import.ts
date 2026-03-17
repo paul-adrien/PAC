@@ -13,7 +13,6 @@ const ImportResultSchema = z.object({
 
 export type ImportResult = z.infer<typeof ImportResultSchema>;
 
-/** Preview result — parsing + normalisation sans écriture DB */
 const PreviewResultSchema = z.object({
   total_in_file: z.number(),
   valid: z.number(),
@@ -42,7 +41,6 @@ function dedupByFingerprint(rows: JobNormalized[]): JobNormalized[] {
   return Array.from(map.values());
 }
 
-/** Parse + normalise sans écrire en base — pour preview côté serveur */
 export function previewJobsJSON(jsonText: string): PreviewResult {
   const inputs = parseJobExportJSON(jsonText);
   const validInputs = inputs.filter(isValidInput);
@@ -79,7 +77,6 @@ export async function importJobsJSON(params: {
 
   const fingerprints = normalized.map(r => r.fingerprint);
 
-  // 1) fetch existing fingerprints (batch)
   const { data: existingRows, error: existingErr } = await supabase
     .from('jobs')
     .select('fingerprint')
@@ -93,7 +90,6 @@ export async function importJobsJSON(params: {
   const toInsert = normalized.filter(r => !existing.has(r.fingerprint));
   const toUpdate = normalized.filter(r => existing.has(r.fingerprint));
 
-  // 2) insert new
   if (toInsert.length) {
     const payload = toInsert.map(r => ({
       user_id: userId,
@@ -105,14 +101,12 @@ export async function importJobsJSON(params: {
       source_url: r.source_url,
       scraped_at: r.scraped_at,
       raw: r.raw ?? null,
-      // first_seen_at / last_seen_at default now()
     }));
 
     const { error: insErr } = await supabase.from('jobs').insert(payload);
     if (insErr) throw insErr;
   }
 
-  // 3) update last_seen_at for existing (batch)
   if (toUpdate.length) {
     const { error: updErr } = await supabase
       .from('jobs')

@@ -35,6 +35,6 @@ export function buildNormalized(input: ValidJobInput): JobNormalized {
     source_url,
     scraped_at,
     fingerprint,
-    raw: input, // optionnel: garde l’input comme trace
+    raw: input,
   });
 }
