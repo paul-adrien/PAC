@@ -1,7 +1,6 @@
 import './popup.css';
-import type { ScanRequest, ScanResponse } from '../shared/types';
+import type { ScanRequest, ScanResponse, EnrichResponse, JobOffer } from '../shared/types';
 import { sendScanToTab } from '../shared/messaging';
-import type { JobOffer } from '../shared/types';
 
 let offersState: JobOffer[] = [];
 
@@ -136,6 +135,186 @@ async function onAutoClick() {
   }
 }
 
+function getApiUrl(): string {
+  const el = document.getElementById('apiUrl') as HTMLInputElement | null;
+  return (el?.value ?? 'http://localhost:3000').replace(/\/+$/, '');
+}
+
+function getApiToken(): string {
+  const el = document.getElementById('apiToken') as HTMLInputElement | null;
+  return el?.value ?? '';
+}
+
+async function saveSettings() {
+  await chrome.storage.local.set({
+    apiUrl: getApiUrl(),
+    apiToken: getApiToken(),
+  });
+}
+
+async function loadSettings() {
+  const { apiUrl, apiToken } = await chrome.storage.local.get(['apiUrl', 'apiToken']);
+  const urlEl = document.getElementById('apiUrl') as HTMLInputElement | null;
+  const tokenEl = document.getElementById('apiToken') as HTMLInputElement | null;
+  if (urlEl && typeof apiUrl === 'string') urlEl.value = apiUrl;
+  if (tokenEl && typeof apiToken === 'string') tokenEl.value = apiToken;
+}
+
+async function onEnrichClick() {
+  const btn = document.getElementById('enrichBtn') as HTMLButtonElement | null;
+  const statusEl = document.getElementById('enrichStatus');
+  btn?.setAttribute('disabled', 'true');
+  if (statusEl) statusEl.textContent = 'Scraping...';
+
+  try {
+    const tab = await getActiveTab();
+    if (!tab?.id) {
+      if (statusEl) statusEl.textContent = "Pas d'onglet actif";
+      return;
+    }
+
+    const res: EnrichResponse = await chrome.tabs.sendMessage(tab.id, { type: 'ENRICH_JOB' });
+
+    if (!res.ok) {
+      if (statusEl) statusEl.textContent = res.error;
+      return;
+    }
+
+    if (statusEl) statusEl.textContent = 'Envoi vers PAC...';
+
+    await saveSettings();
+    const apiUrl = getApiUrl();
+    const token = getApiToken();
+
+    const apiRes = await fetch(`${apiUrl}/api/jobs/enrich`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        sourceUrl: res.details.sourceUrl,
+        details: {
+          description: res.details.description,
+          employmentType: res.details.employmentType,
+          seniorityLevel: res.details.seniorityLevel,
+          industry: res.details.industry,
+          skills: res.details.skills,
+          salary: res.details.salary,
+          applicants: res.details.applicants,
+          postedAt: res.details.postedAt,
+        },
+      }),
+    });
+
+    const json = await apiRes.json();
+
+    if (apiRes.ok && json.ok) {
+      if (statusEl) statusEl.textContent = 'Offre enrichie !';
+    } else {
+      if (statusEl) statusEl.textContent = json.error ?? 'Erreur API';
+    }
+  } catch (e) {
+    const error = e instanceof Error ? e.message : 'Erreur inconnue';
+    if (statusEl) statusEl.textContent = error;
+  } finally {
+    btn?.removeAttribute('disabled');
+  }
+}
+
+function getCanonicalJobUrl(tabUrl: string): string | null {
+  try {
+    const u = new URL(tabUrl);
+    const m = u.pathname.match(/\/jobs\/view\/(\d+)/);
+    if (m?.[1]) return `https://www.linkedin.com/jobs/view/${m[1]}/`;
+  } catch {}
+  return null;
+}
+
+async function onApplyClick() {
+  const btn = document.getElementById('applyBtn') as HTMLButtonElement | null;
+  const statusEl = document.getElementById('enrichStatus');
+  btn?.setAttribute('disabled', 'true');
+
+  try {
+    const tab = await getActiveTab();
+    const jobUrl = tab?.url ? getCanonicalJobUrl(tab.url) : null;
+
+    if (!jobUrl) {
+      if (statusEl) statusEl.textContent = "Pas sur une page d'offre LinkedIn";
+      return;
+    }
+
+    await saveSettings();
+    const apiUrl = getApiUrl();
+    const token = getApiToken();
+
+    const res = await fetch(`${apiUrl}/api/jobs/apply`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ sourceUrl: jobUrl }),
+    });
+
+    const json = await res.json();
+
+    if (res.ok && json.ok) {
+      if (statusEl) statusEl.textContent = json.applied ? 'Candidature enregistrée !' : 'Candidature retirée';
+    } else {
+      if (statusEl) statusEl.textContent = json.error ?? 'Erreur API';
+    }
+  } catch (e) {
+    const error = e instanceof Error ? e.message : 'Erreur inconnue';
+    if (statusEl) statusEl.textContent = error;
+  } finally {
+    btn?.removeAttribute('disabled');
+  }
+}
+
+async function onDismissClick() {
+  const btn = document.getElementById('dismissBtn') as HTMLButtonElement | null;
+  const statusEl = document.getElementById('enrichStatus');
+  btn?.setAttribute('disabled', 'true');
+
+  try {
+    const tab = await getActiveTab();
+    const jobUrl = tab?.url ? getCanonicalJobUrl(tab.url) : null;
+
+    if (!jobUrl) {
+      if (statusEl) statusEl.textContent = "Pas sur une page d'offre LinkedIn";
+      return;
+    }
+
+    await saveSettings();
+    const apiUrl = getApiUrl();
+    const token = getApiToken();
+
+    const res = await fetch(`${apiUrl}/api/jobs/dismiss`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ sourceUrl: jobUrl }),
+    });
+
+    const json = await res.json();
+
+    if (res.ok && json.ok) {
+      if (statusEl) statusEl.textContent = json.dismissed ? 'Offre masquée' : 'Offre restaurée';
+    } else {
+      if (statusEl) statusEl.textContent = json.error ?? 'Erreur API';
+    }
+  } catch (e) {
+    const error = e instanceof Error ? e.message : 'Erreur inconnue';
+    if (statusEl) statusEl.textContent = error;
+  } finally {
+    btn?.removeAttribute('disabled');
+  }
+}
+
 async function main() {
   const tab = await getActiveTab();
   const url = tab?.url ?? null;
@@ -153,6 +332,13 @@ async function main() {
   document.getElementById('scanBtn')?.addEventListener('click', onScanClick);
   document.getElementById('exportBtn')?.addEventListener('click', onExportClick);
   document.getElementById('clearBtn')?.addEventListener('click', onClearClick);
+  document.getElementById('enrichBtn')?.addEventListener('click', onEnrichClick);
+  document.getElementById('applyBtn')?.addEventListener('click', onApplyClick);
+  document.getElementById('dismissBtn')?.addEventListener('click', onDismissClick);
+
+  await loadSettings();
+  document.getElementById('apiUrl')?.addEventListener('change', saveSettings);
+  document.getElementById('apiToken')?.addEventListener('change', saveSettings);
 
   render();
 }

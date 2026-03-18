@@ -40,5 +40,23 @@ export const JobNormalizedSchema = z.object({
   raw: z.unknown().optional(),
 });
 
+export const JobDetailsSchema = z.object({
+  description: z.string().optional().nullable(),
+  employmentType: z.string().optional().nullable(),
+  seniorityLevel: z.string().optional().nullable(),
+  industry: z.string().optional().nullable(),
+  skills: z.array(z.string()).optional().nullable(),
+  salary: z.string().optional().nullable(),
+  applicants: z.string().optional().nullable(),
+  postedAt: z.string().optional().nullable(),
+});
+
+export const JobEnrichRequestSchema = z.object({
+  sourceUrl: z.string().url(),
+  details: JobDetailsSchema,
+});
+
 export type JobInput = z.infer<typeof JobInputSchema>;
 export type JobNormalized = z.infer<typeof JobNormalizedSchema>;
+export type JobDetails = z.infer<typeof JobDetailsSchema>;
+export type JobEnrichRequest = z.infer<typeof JobEnrichRequestSchema>;

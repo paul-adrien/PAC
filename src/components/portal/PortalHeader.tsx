@@ -7,9 +7,9 @@ import { useTranslation } from '@/lib/i18n';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 const navItems = [
-  { href: '/portal', labelKey: 'portal.header.myApplications' as const },
-  { href: '/portal/new-application', labelKey: 'portal.header.newApplication' as const },
   { href: '/portal/jobs', labelKey: 'portal.header.jobs' as const },
+  { href: '/portal/jobs/new', labelKey: 'portal.header.newJob' as const },
+  { href: '/portal/settings', labelKey: 'portal.header.settings' as const },
 ] as const;
 
 export function PortalHeader() {
@@ -23,14 +23,14 @@ export function PortalHeader() {
   };
 
   return (
-    <header className="mx-auto mb-6 flex max-w-4xl flex-wrap items-center justify-between gap-4 rounded-2xl border border-orange-200/60 bg-white/90 px-6 py-4 shadow-lg backdrop-blur">
-      <Link href="/portal" className="text-xl font-semibold text-gray-900 hover:text-orange-800">
+    <header className="mx-auto mb-6 flex max-w-5xl flex-wrap items-center justify-between gap-4 rounded-2xl border border-orange-200/60 bg-white/90 px-6 py-4 shadow-lg backdrop-blur">
+      <Link href="/portal/jobs" className="text-xl font-semibold text-gray-900 hover:text-orange-800">
         {t('portal.header.appName')}
       </Link>
 
       <nav className="flex items-center gap-1" aria-label={t('portal.header.navLabel')}>
         {navItems.map(({ href, labelKey }) => {
-          const isActive = pathname === href || (href !== '/portal' && pathname.startsWith(href));
+          const isActive = pathname === href || (href !== '/portal/jobs' && pathname.startsWith(href));
           return (
             <Link
               key={href}

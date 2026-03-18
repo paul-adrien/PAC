@@ -17,6 +17,9 @@ type Row = {
   last_seen_at: string;
   scraped_at: string | null;
   viewed_at: string | null;
+  applied_at: string | null;
+  dismissed_at: string | null;
+  details: Record<string, unknown> | null;
   raw: unknown;
   created_at: string;
   updated_at: string;
@@ -36,6 +39,9 @@ function rowToJob(r: Row): Job {
     lastSeenAt: r.last_seen_at,
     scrapedAt: r.scraped_at,
     viewedAt: r.viewed_at,
+    appliedAt: r.applied_at,
+    dismissedAt: r.dismissed_at,
+    details: (r.details as Job['details']) ?? null,
     raw: r.raw,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -66,6 +72,8 @@ export default async function JobsPage({ searchParams }: Props) {
   const search = String(params.search || '');
   const filterCompany = String(params.company || '');
   const filterSource = String(params.source || '');
+  const filterLocation = String(params.location || '');
+  const unseenOnly = params.unseen === '1';
 
   const dbSortCol = SORT_COLUMNS[sortKey] ?? 'created_at';
 
@@ -73,6 +81,9 @@ export default async function JobsPage({ searchParams }: Props) {
 
   if (filterCompany) query = query.eq('company', filterCompany);
   if (filterSource) query = query.eq('source', filterSource);
+  if (filterLocation) query = query.ilike('location', `%${filterLocation}%`);
+  if (unseenOnly) query = query.is('viewed_at', null);
+  query = query.is('dismissed_at', null);
   if (search)
     query = query.or(
       `title.ilike.%${search}%,company.ilike.%${search}%,location.ilike.%${search}%`,
@@ -123,6 +134,8 @@ export default async function JobsPage({ searchParams }: Props) {
           search={search}
           filterCompany={filterCompany}
           filterSource={filterSource}
+          filterLocation={filterLocation}
+          unseenOnly={unseenOnly}
         />
       </div>
     </div>

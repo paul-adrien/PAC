@@ -12,7 +12,8 @@
     "https://www.welcometothejungle.com/*",
     "https://www.indeed.com/*",
     "https://fr.indeed.com/*",
-    "https://*.indeed.com/*"
+    "https://*.indeed.com/*",
+    "http://localhost:3000/*"
   ],
   "background": {
     "service_worker": "background/service-worker.js",

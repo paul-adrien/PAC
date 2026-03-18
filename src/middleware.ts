@@ -39,13 +39,13 @@ export async function middleware(req: NextRequest) {
 
   if (session && isAuthRoute) {
     const url = req.nextUrl.clone();
-    url.pathname = '/portal';
+    url.pathname = '/portal/jobs';
     return NextResponse.redirect(url);
   }
 
-  if (isHome) {
+  if (isHome || pathname === '/portal') {
     const url = req.nextUrl.clone();
-    url.pathname = session ? '/portal' : '/auth/login';
+    url.pathname = session ? '/portal/jobs' : '/auth/login';
     return NextResponse.redirect(url);
   }
 

@@ -22,6 +22,9 @@ interface Props<T> {
   readonly sortDir: 'asc' | 'desc';
   readonly perPageOptions?: number[];
   readonly emptyMessage?: string;
+  readonly expandedKey?: string | null;
+  readonly onRowClick?: (row: T) => void;
+  readonly renderExpanded?: (row: T) => ReactNode;
 }
 
 function updateParams(
@@ -47,6 +50,9 @@ export function DataTable<T>({
   sortDir,
   perPageOptions = [10, 25, 50],
   emptyMessage = 'Aucun résultat.',
+  expandedKey,
+  onRowClick,
+  renderExpanded,
 }: Props<T>) {
   const router = useRouter();
   const pathname = usePathname();
@@ -99,15 +105,32 @@ export function DataTable<T>({
             </tr>
           </thead>
           <tbody>
-            {data.map(row => (
-              <tr key={rowKey(row)} className="border-b border-orange-50 hover:bg-orange-50/50">
-                {columns.map(col => (
-                  <td key={col.key} className={`px-4 py-3 ${col.className ?? ''}`}>
-                    {col.render(row)}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            {data.map(row => {
+              const key = rowKey(row);
+              const isExpanded = expandedKey === key;
+              return (
+                <>
+                  <tr
+                    key={key}
+                    className={`border-b border-orange-50 ${onRowClick ? 'cursor-pointer' : ''} ${isExpanded ? 'bg-orange-50' : 'hover:bg-orange-50/50'}`}
+                    onClick={() => onRowClick?.(row)}
+                  >
+                    {columns.map(col => (
+                      <td key={col.key} className={`px-4 py-3 ${col.className ?? ''}`}>
+                        {col.render(row)}
+                      </td>
+                    ))}
+                  </tr>
+                  {isExpanded && renderExpanded && (
+                    <tr key={`${key}-expanded`} className="bg-orange-50/50">
+                      <td colSpan={columns.length} className="px-4 py-4">
+                        {renderExpanded(row)}
+                      </td>
+                    </tr>
+                  )}
+                </>
+              );
+            })}
           </tbody>
         </table>
       </div>

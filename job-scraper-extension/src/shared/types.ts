@@ -28,6 +28,26 @@ export type AutoScrollScanRequest = {
   options?: ScanOptions;
 };
 
-export type ClientRequest = ScanRequest | AutoScrollScanRequest;
+export type JobDetailData = {
+  sourceUrl: string;
+  description: string | null;
+  employmentType: string | null;
+  seniorityLevel: string | null;
+  industry: string | null;
+  skills: string[];
+  salary: string | null;
+  applicants: string | null;
+  postedAt: string | null;
+};
+
+export type EnrichRequest = {
+  type: 'ENRICH_JOB';
+};
+
+export type EnrichResponse =
+  | { ok: true; details: JobDetailData }
+  | { ok: false; error: string };
+
+export type ClientRequest = ScanRequest | AutoScrollScanRequest | EnrichRequest;
 
 export type ScanResponse = { ok: true; offers: JobOffer[] } | { ok: false; error: string };

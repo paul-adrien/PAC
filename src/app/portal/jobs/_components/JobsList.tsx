@@ -1,12 +1,14 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { DateTime } from 'luxon';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import type { Job } from '@/lib/domain';
 import { useTranslation } from '@/lib/i18n';
 import { Text } from '@/components/ui/text';
 import { DataTable, type Column } from '@/components/ui/data-table';
+import { JobsFilters } from './JobsFilters';
+import { JobDetailPanel } from './JobDetailPanel';
 
 interface Props {
   readonly jobs: Job[];
@@ -20,18 +22,8 @@ interface Props {
   readonly search: string;
   readonly filterCompany: string;
   readonly filterSource: string;
-}
-
-function updateParams(
-  current: URLSearchParams,
-  updates: Record<string, string | undefined>,
-): string {
-  const params = new URLSearchParams(current);
-  for (const [k, v] of Object.entries(updates)) {
-    if (v === undefined || v === '') params.delete(k);
-    else params.set(k, v);
-  }
-  return params.toString();
+  readonly filterLocation: string;
+  readonly unseenOnly: boolean;
 }
 
 export function JobsList({
@@ -46,22 +38,20 @@ export function JobsList({
   search,
   filterCompany,
   filterSource,
+  filterLocation,
+  unseenOnly,
 }: Props) {
   const { t } = useTranslation();
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const navigate = (updates: Record<string, string | undefined>) => {
-    const qs = updateParams(searchParams, { ...updates, page: updates.page ?? '0' });
-    router.push(`${pathname}?${qs}`);
-  };
-
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
+  const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const formatDate = (iso: string) => DateTime.fromISO(iso).toRelative({ locale: 'fr' }) ?? iso;
 
   const isViewed = (job: Job) => job.viewedAt !== null || viewedIds.has(job.id);
+  const isApplied = (job: Job) => (job.appliedAt !== null || appliedIds.has(job.id)) && !dismissedIds.has(job.id);
 
   const markAsViewed = useCallback((jobId: string) => {
     setViewedIds(prev => new Set(prev).add(jobId));
@@ -72,6 +62,32 @@ export function JobsList({
     });
   }, []);
 
+  const toggleApply = useCallback((job: Job) => {
+    const willApply = !isApplied(job);
+    if (willApply) {
+      setAppliedIds(prev => new Set(prev).add(job.id));
+    } else {
+      setAppliedIds(prev => { const n = new Set(prev); n.delete(job.id); return n; });
+    }
+    fetch('/api/jobs/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourceUrl: job.sourceUrl }),
+    });
+  }, [jobs, appliedIds]);
+
+  const dismissJob = useCallback((job: Job) => {
+    setDismissedIds(prev => new Set(prev).add(job.id));
+    setExpandedId(null);
+    fetch('/api/jobs/dismiss', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId: job.id }),
+    }).then(() => router.refresh());
+  }, [router]);
+
+  const visibleJobs = jobs.filter(j => !dismissedIds.has(j.id));
+
   const columns: Column<Job>[] = [
     {
       key: 'title',
@@ -79,15 +95,28 @@ export function JobsList({
       sortable: true,
       className: 'max-w-[280px] truncate',
       render: job => (
-        <a
-          href={job.sourceUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => !isViewed(job) && markAsViewed(job.id)}
-          className={`hover:underline ${isViewed(job) ? 'text-gray-500' : 'font-semibold text-orange-800'}`}
-        >
-          {job.title}
-        </a>
+        <span className="flex items-center gap-2">
+          {isApplied(job) && (
+            <span className="shrink-0 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
+              Candidaté
+            </span>
+          )}
+          {job.details && !isApplied(job) && (
+            <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-green-500" title="Enrichie" />
+          )}
+          <a
+            href={job.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => {
+              e.stopPropagation();
+              if (!isViewed(job)) markAsViewed(job.id);
+            }}
+            className={`hover:underline ${isViewed(job) ? 'text-gray-500' : 'font-semibold text-orange-800'}`}
+          >
+            {job.title}
+          </a>
+        </span>
       ),
     },
     {
@@ -135,74 +164,39 @@ export function JobsList({
         </Text>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-3">
-        <input
-          type="text"
-          placeholder={t('jobs.list.search', { defaultValue: 'Rechercher...' })}
-          defaultValue={search}
-          onKeyDown={e => {
-            if (e.key === 'Enter') {
-              navigate({ search: e.currentTarget.value || undefined });
-            }
-          }}
-          className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-gray-900 shadow-sm
-            focus:border-orange-400 focus:ring-1 focus:ring-orange-400 focus:outline-none"
+      <div className="mt-3">
+        <JobsFilters
+          companies={companies}
+          sources={sources}
+          search={search}
+          filterCompany={filterCompany}
+          filterSource={filterSource}
+          filterLocation={filterLocation}
+          unseenOnly={unseenOnly}
         />
-
-        <select
-          value={filterCompany}
-          onChange={e => navigate({ company: e.target.value || undefined })}
-          className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-gray-900 shadow-sm
-            focus:border-orange-400 focus:ring-1 focus:ring-orange-400 focus:outline-none"
-        >
-          <option value="">
-            {t('jobs.list.allCompanies', { defaultValue: 'Toutes les entreprises' })}
-          </option>
-          {companies.map(c => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={filterSource}
-          onChange={e => navigate({ source: e.target.value || undefined })}
-          className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-gray-900 shadow-sm
-            focus:border-orange-400 focus:ring-1 focus:ring-orange-400 focus:outline-none"
-        >
-          <option value="">
-            {t('jobs.list.allSources', { defaultValue: 'Toutes les sources' })}
-          </option>
-          {sources.map(s => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-
-        {(filterCompany || filterSource || search) && (
-          <button
-            type="button"
-            onClick={() => navigate({ company: undefined, source: undefined, search: undefined })}
-            className="text-sm text-orange-700 underline hover:text-orange-900"
-          >
-            {t('jobs.list.clearFilters', { defaultValue: 'Réinitialiser' })}
-          </button>
-        )}
       </div>
 
       <div className="mt-4">
         <DataTable
-          data={jobs}
+          data={visibleJobs}
           columns={columns}
           rowKey={job => job.id}
-          totalCount={totalCount}
+          totalCount={totalCount - dismissedIds.size}
           page={page}
           perPage={perPage}
           sortKey={sortKey}
           sortDir={sortDir}
           emptyMessage={t('jobs.list.empty', { defaultValue: 'Aucune offre trouvée.' })}
+          expandedKey={expandedId}
+          onRowClick={job => setExpandedId(prev => (prev === job.id ? null : job.id))}
+          renderExpanded={job => (
+            <JobDetailPanel
+              job={job}
+              isApplied={isApplied(job)}
+              onToggleApply={() => toggleApply(job)}
+              onDismiss={() => dismissJob(job)}
+            />
+          )}
         />
       </div>
     </div>

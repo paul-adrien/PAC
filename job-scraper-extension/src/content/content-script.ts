@@ -1,10 +1,11 @@
-import type { ClientRequest, ScanResponse } from '../shared/types';
+import type { ClientRequest, EnrichResponse, ScanResponse } from '../shared/types';
 import { adapters } from './adapters';
 import {
   clickLinkedInNextPage,
   getLinkedInListSignature,
   getLinkedInScrollContainerFromCard,
 } from './adapters/linkedin';
+import { scrapeLinkedInJobDetail } from './adapters/linkedin-detail';
 
 function jitterMs(baseMs: number, pct = 0.2) {
   const clamped = Math.max(0, baseMs);
@@ -81,11 +82,22 @@ async function waitForMoreCards(prevCount: number, timeoutMs: number) {
 }
 
 chrome.runtime.onMessage.addListener(
-  (message: ClientRequest, _sender, sendResponse: (res: ScanResponse) => void) => {
+  (message: ClientRequest, _sender, sendResponse: (res: ScanResponse | EnrichResponse) => void) => {
     if (!message) return;
 
     (async () => {
       try {
+        if (message.type === 'ENRICH_JOB') {
+          const isJobDetailPage = /linkedin\.com\/jobs\/view\/\d+/.test(location.href);
+          if (!isJobDetailPage) {
+            sendResponse({ ok: false, error: 'Not on a LinkedIn job detail page' });
+            return;
+          }
+          const details = scrapeLinkedInJobDetail();
+          sendResponse({ ok: true, details });
+          return;
+        }
+
         if (message.type === 'SCAN_PAGE') {
           const offers = scanOnce(message.options);
           sendResponse({ ok: true, offers });
