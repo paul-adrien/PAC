@@ -98,7 +98,19 @@ export function JobsList({
     }).then(() => router.refresh());
   }, [router]);
 
-  const visibleJobs = jobs.filter(j => !dismissedIds.has(j.id));
+  const [dismissedCompanies, setDismissedCompanies] = useState<Set<string>>(new Set());
+
+  const dismissCompany = useCallback((company: string) => {
+    setDismissedCompanies(prev => new Set(prev).add(company));
+    setExpandedId(null);
+    fetch('/api/companies/dismiss', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ company }),
+    }).then(() => router.refresh());
+  }, [router]);
+
+  const visibleJobs = jobs.filter(j => !dismissedIds.has(j.id) && !dismissedCompanies.has(j.company));
 
   const columns: Column<Job>[] = [
     {
@@ -156,13 +168,6 @@ export function JobsList({
           {job.source}
         </span>
       ),
-    },
-    {
-      key: 'firstSeenAt',
-      header: t('jobs.list.colDate', { defaultValue: 'Date' }),
-      sortable: true,
-      className: 'text-gray-500',
-      render: job => formatDate(job.firstSeenAt),
     },
     {
       key: 'viewedAt',
@@ -223,6 +228,7 @@ export function JobsList({
               onToggleApply={() => toggleApply(current)}
               onDismiss={() => dismissJob(current)}
               onRefresh={() => refreshJob(job.id)}
+              onDismissCompany={() => dismissCompany(current.company)}
             />
             );
           }}

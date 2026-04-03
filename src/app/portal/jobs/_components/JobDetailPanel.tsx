@@ -11,9 +11,10 @@ interface Props {
   readonly onToggleApply: () => void;
   readonly onDismiss: () => void;
   readonly onRefresh: () => Promise<void>;
+  readonly onDismissCompany: () => void;
 }
 
-export function JobDetailPanel({ job, isApplied, onToggleApply, onDismiss, onRefresh }: Props) {
+export function JobDetailPanel({ job, isApplied, onToggleApply, onDismiss, onRefresh, onDismissCompany }: Props) {
   const { t } = useTranslation();
   const d = job.details;
   const [refreshing, setRefreshing] = useState(false);
@@ -26,7 +27,7 @@ export function JobDetailPanel({ job, isApplied, onToggleApply, onDismiss, onRef
   }, [onRefresh]);
 
   const actionButtons = (
-    <div className="flex shrink-0 gap-2">
+    <div className="flex shrink-0 items-center gap-2">
       <button
         type="button"
         onClick={handleRefresh}
@@ -55,6 +56,13 @@ export function JobDetailPanel({ job, isApplied, onToggleApply, onDismiss, onRef
         className="rounded-md border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
       >
         {t('jobs.detail.dismiss', { defaultValue: 'Pas intéressé' })}
+      </button>
+      <button
+        type="button"
+        onClick={e => { e.stopPropagation(); onDismissCompany(); }}
+        className="rounded-md border border-red-200 bg-white px-4 py-2 text-sm font-medium leading-tight text-red-600 hover:bg-red-50 whitespace-pre-line"
+      >
+        {`Pas intéressé\npar ${job.company}`}
       </button>
       <Link
         href={`/portal/jobs/${job.id}/generate`}

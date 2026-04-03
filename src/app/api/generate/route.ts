@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { decrypt } from '@/lib/crypto';
-import { DAILY_GENERATION_LIMIT, GENERATION_TYPES, DEFAULT_PROMPTS, type GenerationType } from '@/lib/generate/constants';
+import { DAILY_GENERATION_LIMIT, GENERATION_TYPES, DEFAULT_PROMPTS, PROVIDERS, type GenerationType, type Provider } from '@/lib/generate/constants';
+import { callClaude, callOllama } from '@/lib/generate/llm';
 
 export const runtime = 'nodejs';
 
@@ -23,6 +23,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const type = body.type as string;
   const jobId = body.jobId as string;
+  const provider = PROVIDERS.includes(body.provider) ? (body.provider as Provider) : 'claude';
   const promptOverride = typeof body.prompt === 'string' ? body.prompt : null;
 
   if (!GENERATION_TYPES.includes(type as GenerationType)) {
@@ -50,33 +51,29 @@ export async function POST(req: Request) {
     );
   }
 
-  const { data: keyRow, error: keyErr } = await supabase
-    .from('user_api_keys')
-    .select('encrypted_key')
-    .eq('user_id', userId)
-    .eq('provider', 'claude')
-    .maybeSingle();
+  let apiKey = '';
+  if (provider === 'claude') {
+    const { data: keyRow, error: keyErr } = await supabase
+      .from('user_api_keys')
+      .select('encrypted_key')
+      .eq('user_id', userId)
+      .eq('provider', 'claude')
+      .maybeSingle();
 
-  if (keyErr) return NextResponse.json({ error: keyErr.message }, { status: 500 });
-  if (!keyRow) {
-    return NextResponse.json({ error: 'Clé API Claude non configurée. Va dans Paramètres.' }, { status: 400 });
+    if (keyErr) return NextResponse.json({ error: keyErr.message }, { status: 500 });
+    if (!keyRow) {
+      return NextResponse.json({ error: 'Clé API Claude non configurée. Va dans Paramètres.' }, { status: 400 });
+    }
+    apiKey = decrypt(keyRow.encrypted_key);
   }
 
-  const { data: job, error: jobErr } = await supabase
-    .from('jobs')
-    .select('title, company, location, details')
-    .eq('id', jobId)
-    .eq('user_id', userId)
-    .maybeSingle();
+  const [{ data: job, error: jobErr }, { data: profileRow }] = await Promise.all([
+    supabase.from('jobs').select('title, company, location, details').eq('id', jobId).eq('user_id', userId).maybeSingle(),
+    supabase.from('user_profiles').select('content').eq('user_id', userId).maybeSingle(),
+  ]);
 
   if (jobErr) return NextResponse.json({ error: jobErr.message }, { status: 500 });
   if (!job) return NextResponse.json({ error: 'Offre introuvable' }, { status: 404 });
-
-  const { data: profileRow } = await supabase
-    .from('user_profiles')
-    .select('content')
-    .eq('user_id', userId)
-    .maybeSingle();
 
   const profile = profileRow?.content || '';
 
@@ -90,12 +87,10 @@ export async function POST(req: Request) {
       .eq('user_id', userId)
       .eq('type', type)
       .maybeSingle();
-
     promptTemplate = promptRow?.content || DEFAULT_PROMPTS[type as GenerationType];
   }
 
   const details = (job.details ?? {}) as Record<string, unknown>;
-
   const filledPrompt = fillPrompt(promptTemplate, {
     profile,
     jobTitle: job.title,
@@ -106,18 +101,9 @@ export async function POST(req: Request) {
   });
 
   try {
-    const anthropic = new Anthropic({ apiKey: decrypt(keyRow.encrypted_key) });
-
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: filledPrompt }],
-    });
-
-    const result = message.content
-      .filter(block => block.type === 'text')
-      .map(block => block.text)
-      .join('\n');
+    const result = provider === 'ollama'
+      ? await callOllama(filledPrompt)
+      : await callClaude(apiKey, filledPrompt);
 
     const { error: insertErr } = await supabase.from('generations').insert({
       user_id: userId,

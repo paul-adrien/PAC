@@ -1,12 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { DateTime } from 'luxon';
 import { useTranslation } from '@/lib/i18n';
 import { Text } from '@/components/ui/text';
-import { DEFAULT_PROMPTS } from '@/lib/generate/constants';
+import {
+  DEFAULT_PROMPTS,
+  PROVIDERS,
+  type Provider,
+  type GenerationType,
+} from '@/lib/generate/constants';
 
 type Generation = {
   id: string;
@@ -21,40 +26,71 @@ type JobSummary = {
   location: string | null;
 };
 
+const TABS: { key: GenerationType; label: string; desc: string }[] = [
+  {
+    key: 'cv_header',
+    label: 'En-tête de CV',
+    desc: 'Génère un résumé professionnel personnalisé pour cette offre.',
+  },
+  {
+    key: 'cover_letter',
+    label: 'Lettre de motivation',
+    desc: 'Génère une lettre de motivation personnalisée pour cette offre.',
+  },
+];
+
 export default function GeneratePage() {
   const { t } = useTranslation();
   const params = useParams();
   const jobId = params.id as string;
 
   const [job, setJob] = useState<JobSummary | null>(null);
-  const [prompt, setPrompt] = useState('');
-  const [promptLoaded, setPromptLoaded] = useState(false);
+  const [activeTab, setActiveTab] = useState<GenerationType>('cv_header');
+  const [prompts, setPrompts] = useState<Record<string, string>>({});
+  const [promptsLoaded, setPromptsLoaded] = useState<Set<string>>(new Set());
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [generations, setGenerations] = useState<Generation[]>([]);
+  const [generations, setGenerations] = useState<Record<string, Generation[]>>({});
   const [copied, setCopied] = useState<string | null>(null);
   const [promptSaved, setPromptSaved] = useState(false);
+  const [provider, setProvider] = useState<Provider>('claude');
 
   useEffect(() => {
     fetch(`/api/jobs/detail?jobId=${jobId}`)
       .then(r => r.json())
-      .then(json => { if (json.job) setJob(json.job); });
-
-    fetch(`/api/prompts?type=cv_header`)
-      .then(r => r.json())
       .then(json => {
-        setPrompt(json.content ?? DEFAULT_PROMPTS.cv_header);
-        setPromptLoaded(true);
+        if (json.job) setJob(json.job);
       });
-
-    fetchGenerations();
   }, [jobId]);
 
-  const fetchGenerations = () => {
-    fetch(`/api/generations?jobId=${jobId}&type=cv_header`)
-      .then(r => r.json())
-      .then(json => { if (json.generations) setGenerations(json.generations); });
+  const loadTab = useCallback(
+    (type: GenerationType) => {
+      if (!promptsLoaded.has(type)) {
+        fetch(`/api/prompts?type=${type}`)
+          .then(r => r.json())
+          .then(json => {
+            setPrompts(prev => ({ ...prev, [type]: json.content ?? DEFAULT_PROMPTS[type] }));
+            setPromptsLoaded(prev => new Set(prev).add(type));
+          });
+      }
+      fetch(`/api/generations?jobId=${jobId}&type=${type}`)
+        .then(r => r.json())
+        .then(json => {
+          if (json.generations) setGenerations(prev => ({ ...prev, [type]: json.generations }));
+        });
+    },
+    [jobId, promptsLoaded],
+  );
+
+  useEffect(() => {
+    loadTab(activeTab);
+  }, [activeTab, loadTab]);
+
+  const handleTabChange = (type: GenerationType) => {
+    setActiveTab(type);
+    setResult(null);
+    setError(null);
   };
 
   const handleGenerate = async () => {
@@ -65,7 +101,7 @@ export default function GeneratePage() {
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'cv_header', jobId, prompt }),
+      body: JSON.stringify({ type: activeTab, jobId, prompt: prompts[activeTab], provider }),
     });
 
     const json = await res.json();
@@ -77,21 +113,21 @@ export default function GeneratePage() {
     }
 
     setResult(json.result);
-    fetchGenerations();
+    loadTab(activeTab);
   };
 
   const handleSavePrompt = async () => {
     await fetch('/api/prompts', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'cv_header', content: prompt }),
+      body: JSON.stringify({ type: activeTab, content: prompts[activeTab] }),
     });
     setPromptSaved(true);
     setTimeout(() => setPromptSaved(false), 2000);
   };
 
   const handleResetPrompt = () => {
-    setPrompt(DEFAULT_PROMPTS.cv_header);
+    setPrompts(prev => ({ ...prev, [activeTab]: DEFAULT_PROMPTS[activeTab] }));
   };
 
   const handleCopy = async (text: string, id: string) => {
@@ -101,6 +137,10 @@ export default function GeneratePage() {
   };
 
   const formatDate = (iso: string) => DateTime.fromISO(iso).toRelative({ locale: 'fr' }) ?? iso;
+
+  const currentPrompt = prompts[activeTab] ?? '';
+  const currentGenerations = generations[activeTab] ?? [];
+  const tab = TABS.find(t => t.key === activeTab) ?? TABS[0];
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -118,26 +158,51 @@ export default function GeneratePage() {
         )}
       </div>
 
+      <div className="flex gap-1 border-b border-orange-200">
+        {TABS.map(t => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => handleTabChange(t.key)}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === t.key
+                ? 'border-b-2 border-orange-900 text-orange-900'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       <div className="rounded-2xl border border-orange-200/60 bg-white/90 px-6 py-5 shadow-lg backdrop-blur">
-        <h2 className="text-lg font-semibold text-gray-900">
-          {t('generate.cvHeader', { defaultValue: 'En-tête de CV' })}
-        </h2>
+        <h2 className="text-lg font-semibold text-gray-900">{tab.label}</h2>
         <Text variant="muted" className="mt-1">
-          {t('generate.cvHeaderDesc', {
-            defaultValue: 'Génère un résumé professionnel personnalisé pour cette offre. Tu peux modifier le prompt ci-dessous.',
-          })}
+          {tab.desc}
         </Text>
 
-        {promptLoaded && (
+        {promptsLoaded.has(activeTab) && (
           <>
             <textarea
-              value={prompt}
-              onChange={e => setPrompt(e.target.value)}
+              value={currentPrompt}
+              onChange={e => setPrompts(prev => ({ ...prev, [activeTab]: e.target.value }))}
               rows={12}
               className="mt-4 w-full rounded-md border border-orange-200 bg-orange-50 px-4 py-3 text-xs font-mono text-gray-900 shadow-sm
                 focus:border-orange-400 focus:ring-1 focus:ring-orange-400 focus:outline-none"
             />
             <div className="mt-2 flex flex-wrap items-center gap-2">
+              <select
+                value={provider}
+                onChange={e => setProvider(e.target.value as Provider)}
+                className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-gray-900
+                  focus:border-orange-400 focus:ring-1 focus:ring-orange-400 focus:outline-none"
+              >
+                {PROVIDERS.map(p => (
+                  <option key={p} value={p}>
+                    {p === 'claude' ? 'Claude (API)' : 'Ollama (local)'}
+                  </option>
+                ))}
+              </select>
               <button
                 type="button"
                 onClick={handleGenerate}
@@ -193,13 +258,13 @@ export default function GeneratePage() {
         )}
       </div>
 
-      {generations.length > 0 && (
+      {currentGenerations.length > 0 && (
         <div className="rounded-2xl border border-orange-200/60 bg-white/90 px-6 py-5 shadow-lg backdrop-blur">
           <h2 className="text-lg font-semibold text-gray-900">
             {t('generate.history', { defaultValue: 'Historique' })}
           </h2>
           <div className="mt-3 space-y-3">
-            {generations.map(gen => (
+            {currentGenerations.map(gen => (
               <div
                 key={gen.id}
                 className="rounded-lg border border-orange-100 bg-orange-50/50 px-4 py-3"

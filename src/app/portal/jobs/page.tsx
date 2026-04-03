@@ -53,7 +53,6 @@ const SORT_COLUMNS: Record<string, string> = {
   company: 'company',
   location: 'location',
   source: 'source',
-  firstSeenAt: 'first_seen_at',
   viewedAt: 'viewed_at',
 };
 
@@ -81,6 +80,12 @@ export default async function JobsPage({ searchParams }: Props) {
 
   const dbSortCol = SORT_COLUMNS[sortKey] ?? 'created_at';
 
+  const { data: dismissedCompaniesData } = await supabase
+    .from('dismissed_companies')
+    .select('company')
+    .eq('user_id', auth.user.id);
+  const dismissedCompanies = (dismissedCompaniesData ?? []).map(r => r.company);
+
   let query = supabase.from('jobs').select('*', { count: 'exact' }).eq('user_id', auth.user.id);
 
   if (filterCompany) query = query.eq('company', filterCompany);
@@ -90,6 +95,11 @@ export default async function JobsPage({ searchParams }: Props) {
   if (appliedFilter === 'yes') query = query.not('applied_at', 'is', null);
   if (appliedFilter === 'no') query = query.is('applied_at', null);
   query = query.is('dismissed_at', null);
+  if (dismissedCompanies.length > 0) {
+    for (const c of dismissedCompanies) {
+      query = query.neq('company', c);
+    }
+  }
   if (search)
     query = query.or(
       `title.ilike.%${search}%,company.ilike.%${search}%,location.ilike.%${search}%`,
