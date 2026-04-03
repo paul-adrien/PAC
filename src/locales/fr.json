@@ -29,6 +29,7 @@
   "portal.header.logout": "Déconnexion",
   "portal.header.navLabel": "Navigation principale",
   "portal.header.newJob": "Nouvelle offre",
+  "portal.header.profile": "Profil",
   "portal.header.settings": "Paramètres",
   "jobs.import.title": "Importer des offres",
   "jobs.import.subtitle": "Upload un fichier JSON exporté depuis l'extension Chrome.",

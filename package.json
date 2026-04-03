@@ -10,6 +10,7 @@
     "i18n:sync-defaults": "node scripts/sync-i18n-defaults.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
     "@hookform/resolvers": "^5.2.2",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.93.3",

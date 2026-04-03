@@ -51,6 +51,9 @@ function rowToJob(r: Row): Job {
 const SORT_COLUMNS: Record<string, string> = {
   title: 'title',
   company: 'company',
+  location: 'location',
+  source: 'source',
+  firstSeenAt: 'first_seen_at',
   viewedAt: 'viewed_at',
 };
 
@@ -74,6 +77,7 @@ export default async function JobsPage({ searchParams }: Props) {
   const filterSource = String(params.source || '');
   const filterLocation = String(params.location || '');
   const unseenOnly = params.unseen === '1';
+  const appliedFilter = params.applied === 'yes' || params.applied === 'no' ? params.applied : '';
 
   const dbSortCol = SORT_COLUMNS[sortKey] ?? 'created_at';
 
@@ -83,6 +87,8 @@ export default async function JobsPage({ searchParams }: Props) {
   if (filterSource) query = query.eq('source', filterSource);
   if (filterLocation) query = query.ilike('location', `%${filterLocation}%`);
   if (unseenOnly) query = query.is('viewed_at', null);
+  if (appliedFilter === 'yes') query = query.not('applied_at', 'is', null);
+  if (appliedFilter === 'no') query = query.is('applied_at', null);
   query = query.is('dismissed_at', null);
   if (search)
     query = query.or(
@@ -136,6 +142,7 @@ export default async function JobsPage({ searchParams }: Props) {
           filterSource={filterSource}
           filterLocation={filterLocation}
           unseenOnly={unseenOnly}
+          appliedFilter={appliedFilter}
         />
       </div>
     </div>

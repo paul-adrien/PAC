@@ -12,6 +12,7 @@ interface Props {
   readonly filterSource: string;
   readonly filterLocation: string;
   readonly unseenOnly: boolean;
+  readonly appliedFilter: string;
 }
 
 function updateParams(
@@ -34,6 +35,7 @@ export function JobsFilters({
   filterSource,
   filterLocation,
   unseenOnly,
+  appliedFilter,
 }: Props) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -61,7 +63,7 @@ export function JobsFilters({
     setLocationDirty(false);
   };
 
-  const hasFilters = filterCompany || filterSource || filterLocation || search || unseenOnly;
+  const hasFilters = filterCompany || filterSource || filterLocation || search || unseenOnly || appliedFilter;
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -141,6 +143,23 @@ export function JobsFilters({
         ))}
       </select>
 
+      <select
+        value={appliedFilter}
+        onChange={e => navigate({ applied: e.target.value || undefined })}
+        className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-gray-900 shadow-sm
+          focus:border-orange-400 focus:ring-1 focus:ring-orange-400 focus:outline-none"
+      >
+        <option value="">
+          {t('jobs.list.allApplications', { defaultValue: 'Toutes les candidatures' })}
+        </option>
+        <option value="yes">
+          {t('jobs.list.appliedOnly', { defaultValue: 'Postulé' })}
+        </option>
+        <option value="no">
+          {t('jobs.list.notAppliedOnly', { defaultValue: 'Non postulé' })}
+        </option>
+      </select>
+
       <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
         <input
           type="checkbox"
@@ -161,6 +180,7 @@ export function JobsFilters({
               search: undefined,
               location: undefined,
               unseen: undefined,
+              applied: undefined,
             })
           }
           className="text-sm text-orange-700 underline hover:text-orange-900"

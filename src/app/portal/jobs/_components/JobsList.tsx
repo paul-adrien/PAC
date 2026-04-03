@@ -24,6 +24,7 @@ interface Props {
   readonly filterSource: string;
   readonly filterLocation: string;
   readonly unseenOnly: boolean;
+  readonly appliedFilter: string;
 }
 
 export function JobsList({
@@ -40,6 +41,7 @@ export function JobsList({
   filterSource,
   filterLocation,
   unseenOnly,
+  appliedFilter,
 }: Props) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -47,6 +49,16 @@ export function JobsList({
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [refreshedJobs, setRefreshedJobs] = useState<Map<string, Job>>(new Map());
+
+  const getJob = (job: Job) => refreshedJobs.get(job.id) ?? job;
+
+  const refreshJob = useCallback(async (jobId: string) => {
+    const res = await fetch(`/api/jobs/detail?jobId=${jobId}`);
+    if (!res.ok) return;
+    const { job } = await res.json();
+    setRefreshedJobs(prev => new Map(prev).set(jobId, job));
+  }, []);
 
   const formatDate = (iso: string) => DateTime.fromISO(iso).toRelative({ locale: 'fr' }) ?? iso;
 
@@ -93,9 +105,9 @@ export function JobsList({
       key: 'title',
       header: t('jobs.list.colTitle', { defaultValue: 'Titre' }),
       sortable: true,
-      className: 'max-w-[280px] truncate',
+      className: 'max-w-[280px]',
       render: job => (
-        <span className="flex items-center gap-2">
+        <span className="group/title relative flex items-center gap-2">
           {isApplied(job) && (
             <span className="shrink-0 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
               Candidaté
@@ -112,10 +124,13 @@ export function JobsList({
               e.stopPropagation();
               if (!isViewed(job)) markAsViewed(job.id);
             }}
-            className={`hover:underline ${isViewed(job) ? 'text-gray-500' : 'font-semibold text-orange-800'}`}
+            className={`truncate hover:underline ${isViewed(job) ? 'text-gray-500' : 'font-semibold text-orange-800'}`}
           >
             {job.title}
           </a>
+          <span className="pointer-events-none absolute bottom-full left-0 z-50 mb-1 hidden max-w-xs rounded bg-gray-900 px-2 py-1 text-xs text-white shadow-lg group-hover/title:block">
+            {job.title}
+          </span>
         </span>
       ),
     },
@@ -128,17 +143,26 @@ export function JobsList({
     {
       key: 'location',
       header: t('jobs.list.colLocation', { defaultValue: 'Lieu' }),
+      sortable: true,
       className: 'max-w-[200px] truncate text-gray-500',
       render: job => job.location ?? '—',
     },
     {
       key: 'source',
       header: t('jobs.list.colSource', { defaultValue: 'Source' }),
+      sortable: true,
       render: job => (
         <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">
           {job.source}
         </span>
       ),
+    },
+    {
+      key: 'firstSeenAt',
+      header: t('jobs.list.colDate', { defaultValue: 'Date' }),
+      sortable: true,
+      className: 'text-gray-500',
+      render: job => formatDate(job.firstSeenAt),
     },
     {
       key: 'viewedAt',
@@ -173,6 +197,7 @@ export function JobsList({
           filterSource={filterSource}
           filterLocation={filterLocation}
           unseenOnly={unseenOnly}
+          appliedFilter={appliedFilter}
         />
       </div>
 
@@ -189,14 +214,18 @@ export function JobsList({
           emptyMessage={t('jobs.list.empty', { defaultValue: 'Aucune offre trouvée.' })}
           expandedKey={expandedId}
           onRowClick={job => setExpandedId(prev => (prev === job.id ? null : job.id))}
-          renderExpanded={job => (
+          renderExpanded={job => {
+            const current = getJob(job);
+            return (
             <JobDetailPanel
-              job={job}
-              isApplied={isApplied(job)}
-              onToggleApply={() => toggleApply(job)}
-              onDismiss={() => dismissJob(job)}
+              job={current}
+              isApplied={isApplied(current)}
+              onToggleApply={() => toggleApply(current)}
+              onDismiss={() => dismissJob(current)}
+              onRefresh={() => refreshJob(job.id)}
             />
-          )}
+            );
+          }}
         />
       </div>
     </div>

@@ -1,5 +1,7 @@
 'use client';
 
+import { useCallback, useState } from 'react';
+import Link from 'next/link';
 import type { Job } from '@/lib/domain';
 import { useTranslation } from '@/lib/i18n';
 
@@ -8,14 +10,32 @@ interface Props {
   readonly isApplied: boolean;
   readonly onToggleApply: () => void;
   readonly onDismiss: () => void;
+  readonly onRefresh: () => Promise<void>;
 }
 
-export function JobDetailPanel({ job, isApplied, onToggleApply, onDismiss }: Props) {
+export function JobDetailPanel({ job, isApplied, onToggleApply, onDismiss, onRefresh }: Props) {
   const { t } = useTranslation();
   const d = job.details;
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRefreshing(true);
+    await onRefresh();
+    setRefreshing(false);
+  }, [onRefresh]);
 
   const actionButtons = (
     <div className="flex shrink-0 gap-2">
+      <button
+        type="button"
+        onClick={handleRefresh}
+        disabled={refreshing}
+        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        title={t('jobs.detail.refresh', { defaultValue: 'Rafraîchir' })}
+      >
+        <span className={refreshing ? 'inline-block animate-spin' : ''}>↻</span>
+      </button>
       <button
         type="button"
         onClick={e => { e.stopPropagation(); onToggleApply(); }}
@@ -36,6 +56,13 @@ export function JobDetailPanel({ job, isApplied, onToggleApply, onDismiss }: Pro
       >
         {t('jobs.detail.dismiss', { defaultValue: 'Pas intéressé' })}
       </button>
+      <Link
+        href={`/portal/jobs/${job.id}/generate`}
+        onClick={e => e.stopPropagation()}
+        className="rounded-md border border-orange-300 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-800 hover:bg-orange-100"
+      >
+        {t('jobs.detail.generate', { defaultValue: 'Générer' })}
+      </Link>
       <a
         href={job.sourceUrl}
         target="_blank"

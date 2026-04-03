@@ -29,6 +29,7 @@
   "portal.header.logout": "Log out",
   "portal.header.navLabel": "Main navigation",
   "portal.header.newJob": "New job",
+  "portal.header.profile": "Profile",
   "portal.header.settings": "Settings",
   "jobs.import.title": "Import jobs",
   "jobs.import.subtitle": "Upload a JSON file exported from the Chrome extension.",

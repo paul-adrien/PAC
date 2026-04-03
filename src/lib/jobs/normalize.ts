@@ -9,7 +9,15 @@ export function normalizeCompany(s: string): string {
 }
 
 export function normalizeTitle(s: string): string {
-  return normalizeText(s);
+  const text = normalizeText(s);
+  const len = text.length;
+  if (len % 2 === 0) {
+    const half = len / 2;
+    if (text.slice(0, half) === text.slice(half)) {
+      return text.slice(0, half);
+    }
+  }
+  return text;
 }
 
 export function normalizeLocation(s: string | null | undefined): string | null {
