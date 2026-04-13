@@ -2,7 +2,6 @@
 
 import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { DateTime } from 'luxon';
 import type { Job } from '@/lib/domain';
 import { useTranslation } from '@/lib/i18n';
 import { Text } from '@/components/ui/text';
@@ -22,7 +21,6 @@ interface Props {
   readonly search: string;
   readonly filterCompany: string;
   readonly filterSource: string;
-  readonly filterLocation: string;
   readonly unseenOnly: boolean;
   readonly appliedFilter: string;
 }
@@ -39,7 +37,6 @@ export function JobsList({
   search,
   filterCompany,
   filterSource,
-  filterLocation,
   unseenOnly,
   appliedFilter,
 }: Props) {
@@ -59,8 +56,6 @@ export function JobsList({
     const { job } = await res.json();
     setRefreshedJobs(prev => new Map(prev).set(jobId, job));
   }, []);
-
-  const formatDate = (iso: string) => DateTime.fromISO(iso).toRelative({ locale: 'fr' }) ?? iso;
 
   const isViewed = (job: Job) => job.viewedAt !== null || viewedIds.has(job.id);
   const isApplied = (job: Job) => (job.appliedAt !== null || appliedIds.has(job.id)) && !dismissedIds.has(job.id);
@@ -169,17 +164,6 @@ export function JobsList({
         </span>
       ),
     },
-    {
-      key: 'viewedAt',
-      header: t('jobs.list.colViewed', { defaultValue: 'Vu' }),
-      sortable: true,
-      className: 'text-gray-500',
-      render: job => {
-        if (job.viewedAt) return formatDate(job.viewedAt);
-        if (viewedIds.has(job.id)) return "à l'instant";
-        return '—';
-      },
-    },
   ];
 
   return (
@@ -200,7 +184,6 @@ export function JobsList({
           search={search}
           filterCompany={filterCompany}
           filterSource={filterSource}
-          filterLocation={filterLocation}
           unseenOnly={unseenOnly}
           appliedFilter={appliedFilter}
         />

@@ -10,7 +10,6 @@ interface Props {
   readonly search: string;
   readonly filterCompany: string;
   readonly filterSource: string;
-  readonly filterLocation: string;
   readonly unseenOnly: boolean;
   readonly appliedFilter: string;
 }
@@ -33,7 +32,6 @@ export function JobsFilters({
   search,
   filterCompany,
   filterSource,
-  filterLocation,
   unseenOnly,
   appliedFilter,
 }: Props) {
@@ -42,9 +40,7 @@ export function JobsFilters({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const searchRef = useRef<HTMLInputElement>(null);
-  const locationRef = useRef<HTMLInputElement>(null);
   const [searchDirty, setSearchDirty] = useState(false);
-  const [locationDirty, setLocationDirty] = useState(false);
 
   const navigate = (updates: Record<string, string | undefined>) => {
     const qs = updateParams(searchParams, { ...updates, page: '0' });
@@ -57,13 +53,8 @@ export function JobsFilters({
     setSearchDirty(false);
   };
 
-  const submitLocation = () => {
-    const value = locationRef.current?.value ?? '';
-    navigate({ location: value || undefined });
-    setLocationDirty(false);
-  };
-
-  const hasFilters = filterCompany || filterSource || filterLocation || search || unseenOnly || appliedFilter;
+  const hasFilters =
+    filterCompany || filterSource || search || unseenOnly || appliedFilter;
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -105,28 +96,6 @@ export function JobsFilters({
         ))}
       </select>
 
-      <div className="flex items-center gap-1">
-        <input
-          ref={locationRef}
-          type="text"
-          placeholder={t('jobs.list.location', { defaultValue: 'Lieu...' })}
-          defaultValue={filterLocation}
-          onChange={e => setLocationDirty(e.target.value !== filterLocation)}
-          onKeyDown={e => e.key === 'Enter' && submitLocation()}
-          className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-gray-900 shadow-sm
-            focus:border-orange-400 focus:ring-1 focus:ring-orange-400 focus:outline-none"
-        />
-        {locationDirty && (
-          <button
-            type="button"
-            onClick={submitLocation}
-            className="rounded-md bg-orange-900 px-3 py-2 text-sm font-medium text-white hover:bg-orange-800"
-          >
-            OK
-          </button>
-        )}
-      </div>
-
       <select
         value={filterSource}
         onChange={e => navigate({ source: e.target.value || undefined })}
@@ -152,12 +121,8 @@ export function JobsFilters({
         <option value="">
           {t('jobs.list.allApplications', { defaultValue: 'Toutes les candidatures' })}
         </option>
-        <option value="yes">
-          {t('jobs.list.appliedOnly', { defaultValue: 'Postulé' })}
-        </option>
-        <option value="no">
-          {t('jobs.list.notAppliedOnly', { defaultValue: 'Non postulé' })}
-        </option>
+        <option value="yes">{t('jobs.list.appliedOnly', { defaultValue: 'Postulé' })}</option>
+        <option value="no">{t('jobs.list.notAppliedOnly', { defaultValue: 'Non postulé' })}</option>
       </select>
 
       <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
@@ -178,7 +143,6 @@ export function JobsFilters({
               company: undefined,
               source: undefined,
               search: undefined,
-              location: undefined,
               unseen: undefined,
               applied: undefined,
             })

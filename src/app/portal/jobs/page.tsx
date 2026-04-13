@@ -74,7 +74,6 @@ export default async function JobsPage({ searchParams }: Props) {
   const search = String(params.search || '');
   const filterCompany = String(params.company || '');
   const filterSource = String(params.source || '');
-  const filterLocation = String(params.location || '');
   const unseenOnly = params.unseen === '1';
   const appliedFilter = params.applied === 'yes' || params.applied === 'no' ? params.applied : '';
 
@@ -90,7 +89,6 @@ export default async function JobsPage({ searchParams }: Props) {
 
   if (filterCompany) query = query.eq('company', filterCompany);
   if (filterSource) query = query.eq('source', filterSource);
-  if (filterLocation) query = query.ilike('location', `%${filterLocation}%`);
   if (unseenOnly) query = query.is('viewed_at', null);
   if (appliedFilter === 'yes') query = query.not('applied_at', 'is', null);
   if (appliedFilter === 'no') query = query.is('applied_at', null);
@@ -150,7 +148,6 @@ export default async function JobsPage({ searchParams }: Props) {
           search={search}
           filterCompany={filterCompany}
           filterSource={filterSource}
-          filterLocation={filterLocation}
           unseenOnly={unseenOnly}
           appliedFilter={appliedFilter}
         />
