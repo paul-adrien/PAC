@@ -11,9 +11,10 @@ interface Props {
   readonly onToggleApply: () => void;
   readonly onRefresh: () => Promise<void>;
   readonly onDismissCompany: () => void;
+  readonly onOpenLink: () => void;
 }
 
-export function JobDetailPanel({ job, isApplied, onToggleApply, onRefresh, onDismissCompany }: Props) {
+export function JobDetailPanel({ job, isApplied, onToggleApply, onRefresh, onDismissCompany, onOpenLink }: Props) {
   const { t } = useTranslation();
   const d = job.details;
   const [refreshing, setRefreshing] = useState(false);
@@ -67,7 +68,7 @@ export function JobDetailPanel({ job, isApplied, onToggleApply, onRefresh, onDis
         href={job.sourceUrl}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={e => e.stopPropagation()}
+        onClick={e => { e.stopPropagation(); onOpenLink(); }}
         className="rounded-md bg-orange-900 px-4 py-2 text-sm font-medium text-white hover:bg-orange-800"
       >
         {t('jobs.detail.openLink', { defaultValue: 'Ouvrir sur LinkedIn' })}

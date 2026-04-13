@@ -226,6 +226,7 @@ export function JobsList({
               onToggleApply={() => toggleApply(current)}
               onRefresh={() => refreshJob(job.id)}
               onDismissCompany={() => dismissCompany(current.company)}
+              onOpenLink={() => { if (!isViewed(current)) markAsViewed(current.id); }}
             />
             );
           }}
