@@ -164,6 +164,21 @@ export function JobsList({
         </span>
       ),
     },
+    {
+      key: 'actions',
+      header: '',
+      className: 'text-right',
+      render: job => (
+        <button
+          type="button"
+          onClick={e => { e.stopPropagation(); dismissJob(job); }}
+          className="cursor-pointer rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+          title={t('jobs.detail.dismiss', { defaultValue: 'Pas intéressé' })}
+        >
+          {t('jobs.detail.dismiss', { defaultValue: 'Pas intéressé' })}
+        </button>
+      ),
+    },
   ];
 
   return (
@@ -209,7 +224,6 @@ export function JobsList({
               job={current}
               isApplied={isApplied(current)}
               onToggleApply={() => toggleApply(current)}
-              onDismiss={() => dismissJob(current)}
               onRefresh={() => refreshJob(job.id)}
               onDismissCompany={() => dismissCompany(current.company)}
             />

@@ -9,12 +9,11 @@ interface Props {
   readonly job: Job;
   readonly isApplied: boolean;
   readonly onToggleApply: () => void;
-  readonly onDismiss: () => void;
   readonly onRefresh: () => Promise<void>;
   readonly onDismissCompany: () => void;
 }
 
-export function JobDetailPanel({ job, isApplied, onToggleApply, onDismiss, onRefresh, onDismissCompany }: Props) {
+export function JobDetailPanel({ job, isApplied, onToggleApply, onRefresh, onDismissCompany }: Props) {
   const { t } = useTranslation();
   const d = job.details;
   const [refreshing, setRefreshing] = useState(false);
@@ -40,7 +39,7 @@ export function JobDetailPanel({ job, isApplied, onToggleApply, onDismiss, onRef
       <button
         type="button"
         onClick={e => { e.stopPropagation(); onToggleApply(); }}
-        className={`rounded-md px-4 py-2 text-sm font-medium ${
+        className={`cursor-pointer rounded-md px-4 py-2 text-sm font-medium ${
           isApplied
             ? 'border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100'
             : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
@@ -52,15 +51,8 @@ export function JobDetailPanel({ job, isApplied, onToggleApply, onDismiss, onRef
       </button>
       <button
         type="button"
-        onClick={e => { e.stopPropagation(); onDismiss(); }}
-        className="rounded-md border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
-      >
-        {t('jobs.detail.dismiss', { defaultValue: 'Pas intéressé' })}
-      </button>
-      <button
-        type="button"
         onClick={e => { e.stopPropagation(); onDismissCompany(); }}
-        className="rounded-md border border-red-200 bg-white px-4 py-2 text-sm font-medium leading-tight text-red-600 hover:bg-red-50 whitespace-pre-line"
+        className="cursor-pointer rounded-md border border-red-200 bg-white px-4 py-2 text-sm font-medium leading-tight text-red-600 hover:bg-red-50 whitespace-pre-line"
       >
         {`Pas intéressé\npar ${job.company}`}
       </button>
