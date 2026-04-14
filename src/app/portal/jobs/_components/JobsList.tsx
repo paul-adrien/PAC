@@ -1,7 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useRef, useState } from 'react';
 import type { Job } from '@/lib/domain';
 import { useTranslation } from '@/lib/i18n';
 import { Text } from '@/components/ui/text';
@@ -41,12 +40,38 @@ export function JobsList({
   appliedFilter,
 }: Props) {
   const { t } = useTranslation();
-  const router = useRouter();
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [refreshedJobs, setRefreshedJobs] = useState<Map<string, Job>>(new Map());
+  const [extraJobs, setExtraJobs] = useState<Job[]>([]);
+  const replacementCursorRef = useRef(0);
+
+  const fetchReplacement = useCallback(async () => {
+    const offset = (page + 1) * perPage + replacementCursorRef.current;
+    replacementCursorRef.current += 1;
+    const params = new URLSearchParams({
+      offset: String(offset),
+      limit: '1',
+      sortKey,
+      sortDir,
+      search,
+      company: filterCompany,
+      source: filterSource,
+      unseen: unseenOnly ? '1' : '0',
+      ...(appliedFilter ? { applied: appliedFilter } : {}),
+    });
+    const res = await fetch(`/api/jobs/list?${params.toString()}`);
+    if (!res.ok) return;
+    const { jobs: newJobs } = (await res.json()) as { jobs: Job[] };
+    if (newJobs.length === 0) return;
+    setExtraJobs(prev => {
+      const existingIds = new Set([...jobs, ...prev].map(j => j.id));
+      const deduped = newJobs.filter(j => !existingIds.has(j.id));
+      return [...prev, ...deduped];
+    });
+  }, [page, perPage, sortKey, sortDir, search, filterCompany, filterSource, unseenOnly, appliedFilter, jobs]);
 
   const getJob = (job: Job) => refreshedJobs.get(job.id) ?? job;
 
@@ -86,26 +111,33 @@ export function JobsList({
   const dismissJob = useCallback((job: Job) => {
     setDismissedIds(prev => new Set(prev).add(job.id));
     setExpandedId(null);
+    fetchReplacement();
     fetch('/api/jobs/dismiss', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jobId: job.id }),
-    }).then(() => router.refresh());
-  }, [router]);
+    });
+  }, [fetchReplacement]);
 
   const [dismissedCompanies, setDismissedCompanies] = useState<Set<string>>(new Set());
 
   const dismissCompany = useCallback((company: string) => {
     setDismissedCompanies(prev => new Set(prev).add(company));
     setExpandedId(null);
+    const toReplace = [...jobs, ...extraJobs].filter(
+      j => j.company === company && !dismissedIds.has(j.id),
+    ).length;
+    for (let i = 0; i < toReplace; i++) fetchReplacement();
     fetch('/api/companies/dismiss', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ company }),
-    }).then(() => router.refresh());
-  }, [router]);
+    });
+  }, [jobs, extraJobs, dismissedIds, fetchReplacement]);
 
-  const visibleJobs = jobs.filter(j => !dismissedIds.has(j.id) && !dismissedCompanies.has(j.company));
+  const visibleJobs = [...jobs, ...extraJobs].filter(
+    j => !dismissedIds.has(j.id) && !dismissedCompanies.has(j.company),
+  );
 
   const columns: Column<Job>[] = [
     {
