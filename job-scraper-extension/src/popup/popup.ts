@@ -100,6 +100,58 @@ function onClearClick() {
   render();
 }
 
+function setStatus(text: string) {
+  const el = document.getElementById('enrichStatus');
+  if (el) el.textContent = text;
+}
+
+async function postImport(): Promise<{ ok: boolean; result?: { inserted: number; updated_last_seen: number }; error?: string }> {
+  await saveSettings();
+  const apiUrl = getApiUrl();
+  const token = getApiToken();
+
+  const res = await fetch(`${apiUrl}/api/jobs/import`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      exportedAt: new Date().toISOString(),
+      count: offersState.length,
+      offers: offersState,
+    }),
+  });
+
+  return res.json();
+}
+
+async function onSendClick() {
+  const btn = document.getElementById('sendBtn') as HTMLButtonElement | null;
+  btn?.setAttribute('disabled', 'true');
+
+  if (offersState.length === 0) {
+    setStatus('Aucune offre à envoyer');
+    btn?.removeAttribute('disabled');
+    return;
+  }
+
+  setStatus(`Envoi de ${offersState.length} offres...`);
+
+  try {
+    const json = await postImport();
+    if (json.ok && json.result) {
+      setStatus(`Importé : ${json.result.inserted} nouvelles, ${json.result.updated_last_seen} maj`);
+    } else {
+      setStatus(json.error ?? 'Erreur API');
+    }
+  } catch (e) {
+    setStatus(e instanceof Error ? e.message : 'Erreur inconnue');
+  } finally {
+    btn?.removeAttribute('disabled');
+  }
+}
+
 async function onAutoClick() {
   const btn = document.getElementById('autoBtn') as HTMLButtonElement | null;
   btn?.setAttribute('disabled', 'true');
@@ -331,6 +383,7 @@ async function main() {
   document.getElementById('autoBtn')?.addEventListener('click', onAutoClick);
   document.getElementById('scanBtn')?.addEventListener('click', onScanClick);
   document.getElementById('exportBtn')?.addEventListener('click', onExportClick);
+  document.getElementById('sendBtn')?.addEventListener('click', onSendClick);
   document.getElementById('clearBtn')?.addEventListener('click', onClearClick);
   document.getElementById('enrichBtn')?.addEventListener('click', onEnrichClick);
   document.getElementById('applyBtn')?.addEventListener('click', onApplyClick);
