@@ -127,7 +127,8 @@ export default async function JobsPage({ searchParams }: Props) {
     supabase.rpc('jobs_distinct_sources', { p_user_id: auth.user.id }),
   ]);
 
-  const companies = (companiesData as string[]) ?? [];
+  const dismissedSet = new Set(dismissedCompanies);
+  const companies = ((companiesData as string[]) ?? []).filter(c => !dismissedSet.has(c));
   const sources = (sourcesData as string[]) ?? [];
 
   return (
