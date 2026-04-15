@@ -113,24 +113,38 @@ Appliquer les migrations de [src/lib/supabase/migrations/](src/lib/supabase/migr
 - 3 types : `cv_header` (paragraphe de présentation pour CV), `cover_letter` (lettre de motivation), `interview_prep`
 - Providers : Claude API (`claude-sonnet-4-20250514`, 1024 tokens) ou Ollama local (`mistral-nemo` par défaut), sélectionnable dans l'UI de génération
 - Limite : 50 générations par user et par jour
-- Les prompts sont templatés (`{{profile}}`, `{{jobTitle}}`, `{{jobCompany}}`, `{{jobLocation}}`, `{{jobDescription}}`, `{{jobSkills}}`) et éditables directement sur la page de génération (stockés dans la table `prompts`)
-- Aperçu en direct du prompt final avec toutes les variables substituées sous le textarea
+- Prompts templatés et éditables par user dans la page de génération (stockés dans la table `prompts`) :
+  - Variables profil : `{{profile}}`, `{{profileSummary}}`
+  - Variables offre brute : `{{jobTitle}}`, `{{jobCompany}}`, `{{jobLocation}}`, `{{jobDescription}}`, `{{jobSkills}}`
+  - Variables offre extraite (pour `cv_header`) : `{{offerRole}}`, `{{offerMission}}`, `{{offerCompanyFocus}}`, `{{offerSeniority}}`, `{{offerTopSkills}}`
+- Aperçu en direct du prompt final avec toutes les variables substituées, visible sous le textarea
+- L'historique est persisté dans la table `generations` et consultable via `/api/generations`
+- Erreurs API normalisées via [src/lib/errors/api-errors.ts](src/lib/errors/api-errors.ts) (messages user-friendly en français)
+
+### Pipeline en 2 appels pour `cv_header`
+
+Les petits modèles locaux (mistral-nemo, qwen2.5, llama3) se noient dans les offres LinkedIn verbeuses. Pour contourner, `cv_header` utilise un pipeline à 2 appels :
+
+1. **Extraction** — [`OFFER_EXTRACTION_PROMPT`](src/lib/generate/constants.ts) demande au LLM d'analyser l'offre et de renvoyer un JSON avec `role`, `topSkills`, `mainMission`, `companyFocus`, `seniority`. Parsé avec tolérance aux backticks markdown ([`parseOfferExtract`](src/app/api/generate/route.ts)).
+2. **Adaptation** — le prompt `cv_header` reçoit uniquement le résumé de profil + les points clés extraits (pas la description brute), et adapte le résumé à l'offre. Prompt beaucoup plus court donc le modèle garde le focus.
+
+Les deux étapes utilisent le même provider. L'extraction est affichée dans l'UI sous le résultat pour debug.
 
 ### Convention `RÉSUMÉ_PROFIL` (recommandé)
 
 Dans `/portal/profile`, ajoute une section intitulée `RÉSUMÉ_PROFIL` contenant un paragraphe exemple de ton résumé de profil (ton, vocabulaire, structure que tu utilises habituellement) :
 
 ```
-RÉSUMÉ_PROFIL :
-Ingénieur full-stack avec 5 ans d'expérience sur des produits SaaS B2B, je conçois
-et livre des applications web performantes de bout en bout. Chez Acme j'ai refondu
-le module de facturation utilisé par 10k clients. Je maîtrise TypeScript, Next.js,
-PostgreSQL et l'AWS serverless. Ce qui m'attire aujourd'hui, c'est...
+RÉSUMÉ_PROFIL
+Développeur full-stack TypeScript avec 3 ans d'expérience sur des produits en
+production. Intervient de bout en bout sur la stack, avec une attention
+particulière à l'expérience utilisateur côté front, ainsi qu'à la fiabilité, la
+clarté et la maintenabilité côté back. Maîtrise React, Node.js, TypeScript et
+les API. Apprécie les environnements où il est possible d'être force de
+proposition sur toute la stack...
 ```
 
-Le prompt `cv_header` détecte cette section et l'utilise comme **modèle de référence** : il reprend ton ton et ton vocabulaire pour l'adapter à l'offre visée, au lieu d'écrire un paragraphe générique à partir de zéro. Si la section est absente, le prompt retombe sur un modèle standard.
-- L'historique est persisté dans la table `generations` et consultable via `/api/generations`
-- Erreurs API normalisées via `src/lib/errors/api-errors.ts` (messages user-friendly en français)
+Le serveur extrait cette section via [`extractProfileSummary`](src/lib/generate/profile.ts) (parse ligne par ligne jusqu'à la prochaine section en MAJUSCULES) et l'injecte comme `{{profileSummary}}`. Le prompt `cv_header` utilise ce texte comme **modèle de référence** : il reprend la personne grammaticale, la longueur (±15 %) et le vocabulaire pour l'adapter à l'offre visée. Si la section est absente, le profil complet est passé en fallback.
 
 La clé Claude est chiffrée (AES-256) côté serveur avant stockage dans `user_api_keys`.
 

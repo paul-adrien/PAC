@@ -20,19 +20,26 @@ Compétences demandées : {{jobSkills}}
 
 Renvoie UNIQUEMENT un objet JSON valide, sans texte avant ni après, sans markdown, sans triple backticks.
 
-Format attendu (chaque champ est obligatoire) :
+Format attendu (tous les champs sont obligatoires) :
 {
   "role": "intitulé du poste, 5 à 8 mots",
+  "seniority": "niveau demandé : junior, confirmé, senior ou lead",
   "topSkills": ["compétence 1", "compétence 2", "compétence 3", "compétence 4", "compétence 5"],
-  "mainMission": "mission principale en une seule phrase de 15 mots maximum",
+  "fullStack": ["toutes les technos mentionnées dans l'offre (langages, frameworks, outils, infra, tests, etc.), jusqu'à 10 éléments"],
+  "mainMission": "mission principale du poste en une phrase de 15 mots maximum",
+  "productContext": "quel produit ou service le candidat va construire concrètement, et pour qui, en 15 mots maximum",
   "companyFocus": "ce que fait l'entreprise en une phrase de 12 mots maximum",
-  "seniority": "niveau demandé : junior, confirmé, senior ou lead"
+  "teamCulture": "comment l'équipe travaille (méthodes, rituels, organisation), en 20 mots maximum",
+  "candidateQualities": ["3 à 5 qualités personnelles recherchées chez le candidat, en un mot ou deux chacune"]
 }
 
 Règles :
 - Base-toi uniquement sur le texte de l'offre. N'invente rien.
+- Si une info n'est pas dans l'offre, mets une chaîne vide "" ou un tableau vide [].
 - Écris en français.
-- topSkills doit contenir exactement 5 éléments, en ordre de priorité.
+- topSkills : exactement 5 éléments, en ordre de priorité (les technos cœur).
+- fullStack : inclut topSkills + toutes les autres technos mentionnées (infra, tests, outils).
+- candidateQualities : qualités personnelles (autonomie, curiosité, rigueur...), pas des compétences techniques.
 - Pas de phrase d'introduction, pas de commentaire. Uniquement le JSON.`;
 
 export const DEFAULT_PROMPTS: Record<GenerationType, string> = {
@@ -45,10 +52,16 @@ RÉSUMÉ DE PROFIL À ADAPTER (texte de référence — c'est ta base) :
 
 POINTS CLÉS DE L'OFFRE VISÉE (pré-analysés, utilise-les pour orienter le contenu) :
 - Rôle : {{offerRole}}
-- Mission principale : {{offerMission}}
-- Entreprise : {{offerCompanyFocus}}
 - Niveau : {{offerSeniority}}
+- Mission principale : {{offerMission}}
+- Produit / contexte : {{offerProductContext}}
+- Entreprise : {{offerCompanyFocus}}
+- Culture d'équipe : {{offerTeamCulture}}
 - Compétences clés recherchées : {{offerTopSkills}}
+- Stack technique complète mentionnée : {{offerFullStack}}
+- Qualités recherchées chez le candidat : {{offerCandidateQualities}}
+
+Tous ces points ne doivent PAS forcément apparaître dans le résumé final. Sélectionne seulement ceux qui s'alignent avec le profil existant et qui renforcent sa pertinence pour l'offre.
 
 COMMENT FAIRE :
 1. Reproduis fidèlement la VOIX du résumé de référence :

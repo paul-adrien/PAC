@@ -8,19 +8,31 @@ import { apiError } from '@/lib/errors/api-errors';
 
 type OfferExtract = {
   role: string;
-  topSkills: string[];
-  mainMission: string;
-  companyFocus: string;
   seniority: string;
+  topSkills: string[];
+  fullStack: string[];
+  mainMission: string;
+  productContext: string;
+  companyFocus: string;
+  teamCulture: string;
+  candidateQualities: string[];
 };
 
 const EMPTY_OFFER_EXTRACT: OfferExtract = {
   role: '',
-  topSkills: [],
-  mainMission: '',
-  companyFocus: '',
   seniority: '',
+  topSkills: [],
+  fullStack: [],
+  mainMission: '',
+  productContext: '',
+  companyFocus: '',
+  teamCulture: '',
+  candidateQualities: [],
 };
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((s): s is string => typeof s === 'string') : [];
+}
 
 function parseOfferExtract(raw: string): OfferExtract {
   const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
@@ -31,10 +43,14 @@ function parseOfferExtract(raw: string): OfferExtract {
     const json = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
     return {
       role: typeof json.role === 'string' ? json.role : '',
-      topSkills: Array.isArray(json.topSkills) ? json.topSkills.filter((s: unknown) => typeof s === 'string') : [],
-      mainMission: typeof json.mainMission === 'string' ? json.mainMission : '',
-      companyFocus: typeof json.companyFocus === 'string' ? json.companyFocus : '',
       seniority: typeof json.seniority === 'string' ? json.seniority : '',
+      topSkills: stringArray(json.topSkills),
+      fullStack: stringArray(json.fullStack),
+      mainMission: typeof json.mainMission === 'string' ? json.mainMission : '',
+      productContext: typeof json.productContext === 'string' ? json.productContext : '',
+      companyFocus: typeof json.companyFocus === 'string' ? json.companyFocus : '',
+      teamCulture: typeof json.teamCulture === 'string' ? json.teamCulture : '',
+      candidateQualities: stringArray(json.candidateQualities),
     };
   } catch {
     return EMPTY_OFFER_EXTRACT;
@@ -162,10 +178,14 @@ export async function POST(req: Request) {
     const filledPrompt = fillPrompt(promptTemplate, {
       ...baseVars,
       offerRole: offerExtract.role,
-      offerMission: offerExtract.mainMission,
-      offerCompanyFocus: offerExtract.companyFocus,
       offerSeniority: offerExtract.seniority,
+      offerMission: offerExtract.mainMission,
+      offerProductContext: offerExtract.productContext,
+      offerCompanyFocus: offerExtract.companyFocus,
+      offerTeamCulture: offerExtract.teamCulture,
       offerTopSkills: offerExtract.topSkills.join(', '),
+      offerFullStack: offerExtract.fullStack.join(', '),
+      offerCandidateQualities: offerExtract.candidateQualities.join(', '),
     });
 
     const result = await callLLM(provider, apiKey, filledPrompt);

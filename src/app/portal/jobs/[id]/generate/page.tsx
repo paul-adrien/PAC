@@ -55,10 +55,14 @@ export default function GeneratePage() {
   const [result, setResult] = useState<string | null>(null);
   const [offerExtract, setOfferExtract] = useState<{
     role?: string;
-    topSkills?: string[];
-    mainMission?: string;
-    companyFocus?: string;
     seniority?: string;
+    topSkills?: string[];
+    fullStack?: string[];
+    mainMission?: string;
+    productContext?: string;
+    companyFocus?: string;
+    teamCulture?: string;
+    candidateQualities?: string[];
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [generations, setGenerations] = useState<Record<string, Generation[]>>({});
@@ -170,10 +174,14 @@ export default function GeneratePage() {
     .replaceAll('{{jobDescription}}', job?.details?.description || '—')
     .replaceAll('{{jobSkills}}', job?.details?.skills?.join(', ') || '—')
     .replaceAll('{{offerRole}}', OFFER_EXTRACT_PLACEHOLDER)
-    .replaceAll('{{offerMission}}', OFFER_EXTRACT_PLACEHOLDER)
-    .replaceAll('{{offerCompanyFocus}}', OFFER_EXTRACT_PLACEHOLDER)
     .replaceAll('{{offerSeniority}}', OFFER_EXTRACT_PLACEHOLDER)
-    .replaceAll('{{offerTopSkills}}', OFFER_EXTRACT_PLACEHOLDER);
+    .replaceAll('{{offerMission}}', OFFER_EXTRACT_PLACEHOLDER)
+    .replaceAll('{{offerProductContext}}', OFFER_EXTRACT_PLACEHOLDER)
+    .replaceAll('{{offerCompanyFocus}}', OFFER_EXTRACT_PLACEHOLDER)
+    .replaceAll('{{offerTeamCulture}}', OFFER_EXTRACT_PLACEHOLDER)
+    .replaceAll('{{offerTopSkills}}', OFFER_EXTRACT_PLACEHOLDER)
+    .replaceAll('{{offerFullStack}}', OFFER_EXTRACT_PLACEHOLDER)
+    .replaceAll('{{offerCandidateQualities}}', OFFER_EXTRACT_PLACEHOLDER);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -316,10 +324,14 @@ export default function GeneratePage() {
             </summary>
             <div className="border-t border-blue-200 px-3 py-2 text-xs text-gray-700 space-y-1">
               <p><span className="font-semibold">Rôle :</span> {offerExtract.role || '—'}</p>
-              <p><span className="font-semibold">Mission :</span> {offerExtract.mainMission || '—'}</p>
-              <p><span className="font-semibold">Entreprise :</span> {offerExtract.companyFocus || '—'}</p>
               <p><span className="font-semibold">Niveau :</span> {offerExtract.seniority || '—'}</p>
+              <p><span className="font-semibold">Mission :</span> {offerExtract.mainMission || '—'}</p>
+              <p><span className="font-semibold">Produit / contexte :</span> {offerExtract.productContext || '—'}</p>
+              <p><span className="font-semibold">Entreprise :</span> {offerExtract.companyFocus || '—'}</p>
+              <p><span className="font-semibold">Culture d'équipe :</span> {offerExtract.teamCulture || '—'}</p>
               <p><span className="font-semibold">Compétences clés :</span> {offerExtract.topSkills?.join(', ') || '—'}</p>
+              <p><span className="font-semibold">Stack complète :</span> {offerExtract.fullStack?.join(', ') || '—'}</p>
+              <p><span className="font-semibold">Qualités recherchées :</span> {offerExtract.candidateQualities?.join(', ') || '—'}</p>
             </div>
           </details>
         )}
