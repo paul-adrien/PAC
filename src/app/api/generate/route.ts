@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { decrypt } from '@/lib/crypto';
 import { DAILY_GENERATION_LIMIT, GENERATION_TYPES, DEFAULT_PROMPTS, PROVIDERS, type GenerationType, type Provider } from '@/lib/generate/constants';
 import { callClaude, callOllama } from '@/lib/generate/llm';
+import { apiError } from '@/lib/errors/api-errors';
 
 export const runtime = 'nodejs';
 
@@ -117,7 +118,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, result });
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : 'Generation failed';
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return apiError(e, 500, { provider, resource: 'generate' });
   }
 }
