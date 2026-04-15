@@ -4,6 +4,7 @@ import { decrypt } from '@/lib/crypto';
 import { DAILY_GENERATION_LIMIT, GENERATION_TYPES, DEFAULT_PROMPTS, OFFER_EXTRACTION_PROMPT, PROVIDERS, type GenerationType, type Provider } from '@/lib/generate/constants';
 import { callClaude, callOllama } from '@/lib/generate/llm';
 import { extractProfileSummary } from '@/lib/generate/profile';
+import { fillPrompt } from '@/lib/generate/template';
 import { apiError } from '@/lib/errors/api-errors';
 
 type OfferExtract = {
@@ -72,14 +73,6 @@ async function extractOfferKeyPoints(
 }
 
 export const runtime = 'nodejs';
-
-function fillPrompt(template: string, vars: Record<string, string>): string {
-  let result = template;
-  for (const [key, value] of Object.entries(vars)) {
-    result = result.replaceAll(`{{${key}}}`, value || '—');
-  }
-  return result;
-}
 
 export async function POST(req: Request) {
   const supabase = createSupabaseServerClient();
