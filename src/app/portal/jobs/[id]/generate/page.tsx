@@ -24,6 +24,7 @@ type JobSummary = {
   title: string;
   company: string;
   location: string | null;
+  details: { description?: string; skills?: string[] } | null;
 };
 
 const TABS: { key: GenerationType; label: string; desc: string }[] = [
@@ -45,6 +46,7 @@ export default function GeneratePage() {
   const jobId = params.id as string;
 
   const [job, setJob] = useState<JobSummary | null>(null);
+  const [profile, setProfile] = useState<string>('');
   const [activeTab, setActiveTab] = useState<GenerationType>('cv_header');
   const [prompts, setPrompts] = useState<Record<string, string>>({});
   const [promptsLoaded, setPromptsLoaded] = useState<Set<string>>(new Set());
@@ -61,6 +63,11 @@ export default function GeneratePage() {
       .then(r => r.json())
       .then(json => {
         if (json.job) setJob(json.job);
+      });
+    fetch('/api/profile')
+      .then(r => r.json())
+      .then(json => {
+        if (typeof json.content === 'string') setProfile(json.content);
       });
   }, [jobId]);
 
@@ -142,6 +149,14 @@ export default function GeneratePage() {
   const currentGenerations = generations[activeTab] ?? [];
   const tab = TABS.find(t => t.key === activeTab) ?? TABS[0];
 
+  const filledPromptPreview = currentPrompt
+    .replaceAll('{{profile}}', profile || '—')
+    .replaceAll('{{jobTitle}}', job?.title || '—')
+    .replaceAll('{{jobCompany}}', job?.company || '—')
+    .replaceAll('{{jobLocation}}', job?.location || '—')
+    .replaceAll('{{jobDescription}}', job?.details?.description || '—')
+    .replaceAll('{{jobSkills}}', job?.details?.skills?.join(', ') || '—');
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-center gap-3">
@@ -180,6 +195,31 @@ export default function GeneratePage() {
         <Text variant="muted" className="mt-1">
           {tab.desc}
         </Text>
+
+        <div className="mt-4 space-y-3">
+          <details className="rounded-md border border-orange-200 bg-orange-50/60">
+            <summary className="cursor-pointer px-3 py-2 text-xs font-semibold uppercase tracking-wide text-orange-900">
+              Profil envoyé
+            </summary>
+            <pre className="max-h-48 overflow-auto whitespace-pre-wrap border-t border-orange-200 px-3 py-2 text-xs text-gray-700">
+              {profile || '— (aucun profil renseigné)'}
+            </pre>
+          </details>
+          <details className="rounded-md border border-orange-200 bg-orange-50/60">
+            <summary className="cursor-pointer px-3 py-2 text-xs font-semibold uppercase tracking-wide text-orange-900">
+              Offre envoyée
+            </summary>
+            <div className="max-h-64 overflow-auto border-t border-orange-200 px-3 py-2 text-xs text-gray-700">
+              <p><span className="font-semibold">Titre :</span> {job?.title ?? '—'}</p>
+              <p><span className="font-semibold">Entreprise :</span> {job?.company ?? '—'}</p>
+              <p><span className="font-semibold">Lieu :</span> {job?.location ?? '—'}</p>
+              <p className="mt-2 font-semibold">Description :</p>
+              <pre className="whitespace-pre-wrap">{job?.details?.description ?? '—'}</pre>
+              <p className="mt-2 font-semibold">Compétences :</p>
+              <p>{job?.details?.skills?.join(', ') || '—'}</p>
+            </div>
+          </details>
+        </div>
 
         {promptsLoaded.has(activeTab) && (
           <>
@@ -233,6 +273,15 @@ export default function GeneratePage() {
                 </Text>
               )}
             </div>
+
+            <details className="mt-3 rounded-md border border-orange-200 bg-orange-50/60">
+              <summary className="cursor-pointer px-3 py-2 text-xs font-semibold uppercase tracking-wide text-orange-900">
+                Prompt final (ce qui sera envoyé au LLM)
+              </summary>
+              <pre className="max-h-80 overflow-auto whitespace-pre-wrap border-t border-orange-200 px-3 py-2 text-xs text-gray-700">
+                {filledPromptPreview}
+              </pre>
+            </details>
           </>
         )}
 
