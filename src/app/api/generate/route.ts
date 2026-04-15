@@ -1,9 +1,59 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { decrypt } from '@/lib/crypto';
-import { DAILY_GENERATION_LIMIT, GENERATION_TYPES, DEFAULT_PROMPTS, PROVIDERS, type GenerationType, type Provider } from '@/lib/generate/constants';
+import { DAILY_GENERATION_LIMIT, GENERATION_TYPES, DEFAULT_PROMPTS, OFFER_EXTRACTION_PROMPT, PROVIDERS, type GenerationType, type Provider } from '@/lib/generate/constants';
 import { callClaude, callOllama } from '@/lib/generate/llm';
+import { extractProfileSummary } from '@/lib/generate/profile';
 import { apiError } from '@/lib/errors/api-errors';
+
+type OfferExtract = {
+  role: string;
+  topSkills: string[];
+  mainMission: string;
+  companyFocus: string;
+  seniority: string;
+};
+
+const EMPTY_OFFER_EXTRACT: OfferExtract = {
+  role: '',
+  topSkills: [],
+  mainMission: '',
+  companyFocus: '',
+  seniority: '',
+};
+
+function parseOfferExtract(raw: string): OfferExtract {
+  const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  if (firstBrace === -1 || lastBrace === -1) return EMPTY_OFFER_EXTRACT;
+  try {
+    const json = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+    return {
+      role: typeof json.role === 'string' ? json.role : '',
+      topSkills: Array.isArray(json.topSkills) ? json.topSkills.filter((s: unknown) => typeof s === 'string') : [],
+      mainMission: typeof json.mainMission === 'string' ? json.mainMission : '',
+      companyFocus: typeof json.companyFocus === 'string' ? json.companyFocus : '',
+      seniority: typeof json.seniority === 'string' ? json.seniority : '',
+    };
+  } catch {
+    return EMPTY_OFFER_EXTRACT;
+  }
+}
+
+async function callLLM(provider: Provider, apiKey: string, prompt: string): Promise<string> {
+  return provider === 'ollama' ? callOllama(prompt) : callClaude(apiKey, prompt);
+}
+
+async function extractOfferKeyPoints(
+  provider: Provider,
+  apiKey: string,
+  vars: Record<string, string>,
+): Promise<OfferExtract> {
+  const extractionPrompt = fillPrompt(OFFER_EXTRACTION_PROMPT, vars);
+  const raw = await callLLM(provider, apiKey, extractionPrompt);
+  return parseOfferExtract(raw);
+}
 
 export const runtime = 'nodejs';
 
@@ -92,19 +142,33 @@ export async function POST(req: Request) {
   }
 
   const details = (job.details ?? {}) as Record<string, unknown>;
-  const filledPrompt = fillPrompt(promptTemplate, {
+  const profileSummary = extractProfileSummary(profile);
+  const baseVars = {
     profile,
+    profileSummary: profileSummary || profile,
     jobTitle: job.title,
     jobCompany: job.company,
     jobLocation: job.location ?? '',
     jobDescription: (details.description as string) ?? '',
     jobSkills: Array.isArray(details.skills) ? details.skills.join(', ') : '',
-  });
+  };
 
   try {
-    const result = provider === 'ollama'
-      ? await callOllama(filledPrompt)
-      : await callClaude(apiKey, filledPrompt);
+    let offerExtract = EMPTY_OFFER_EXTRACT;
+    if (type === 'cv_header') {
+      offerExtract = await extractOfferKeyPoints(provider, apiKey, baseVars);
+    }
+
+    const filledPrompt = fillPrompt(promptTemplate, {
+      ...baseVars,
+      offerRole: offerExtract.role,
+      offerMission: offerExtract.mainMission,
+      offerCompanyFocus: offerExtract.companyFocus,
+      offerSeniority: offerExtract.seniority,
+      offerTopSkills: offerExtract.topSkills.join(', '),
+    });
+
+    const result = await callLLM(provider, apiKey, filledPrompt);
 
     const { error: insertErr } = await supabase.from('generations').insert({
       user_id: userId,
@@ -116,7 +180,7 @@ export async function POST(req: Request) {
 
     if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
 
-    return NextResponse.json({ ok: true, result });
+    return NextResponse.json({ ok: true, result, offerExtract });
   } catch (e: unknown) {
     return apiError(e, 500, { provider, resource: 'generate' });
   }

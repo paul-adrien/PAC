@@ -12,6 +12,7 @@ import {
   type Provider,
   type GenerationType,
 } from '@/lib/generate/constants';
+import { extractProfileSummary } from '@/lib/generate/profile';
 
 type Generation = {
   id: string;
@@ -52,6 +53,13 @@ export default function GeneratePage() {
   const [promptsLoaded, setPromptsLoaded] = useState<Set<string>>(new Set());
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [offerExtract, setOfferExtract] = useState<{
+    role?: string;
+    topSkills?: string[];
+    mainMission?: string;
+    companyFocus?: string;
+    seniority?: string;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [generations, setGenerations] = useState<Record<string, Generation[]>>({});
   const [copied, setCopied] = useState<string | null>(null);
@@ -104,6 +112,7 @@ export default function GeneratePage() {
     setGenerating(true);
     setError(null);
     setResult(null);
+    setOfferExtract(null);
 
     const res = await fetch('/api/generate', {
       method: 'POST',
@@ -120,6 +129,7 @@ export default function GeneratePage() {
     }
 
     setResult(json.result);
+    if (json.offerExtract) setOfferExtract(json.offerExtract);
     loadTab(activeTab);
   };
 
@@ -149,13 +159,21 @@ export default function GeneratePage() {
   const currentGenerations = generations[activeTab] ?? [];
   const tab = TABS.find(t => t.key === activeTab) ?? TABS[0];
 
+  const profileSummary = extractProfileSummary(profile) || profile;
+  const OFFER_EXTRACT_PLACEHOLDER = '[extrait dynamiquement de l\'offre au moment de la génération]';
   const filledPromptPreview = currentPrompt
     .replaceAll('{{profile}}', profile || '—')
+    .replaceAll('{{profileSummary}}', profileSummary || '—')
     .replaceAll('{{jobTitle}}', job?.title || '—')
     .replaceAll('{{jobCompany}}', job?.company || '—')
     .replaceAll('{{jobLocation}}', job?.location || '—')
     .replaceAll('{{jobDescription}}', job?.details?.description || '—')
-    .replaceAll('{{jobSkills}}', job?.details?.skills?.join(', ') || '—');
+    .replaceAll('{{jobSkills}}', job?.details?.skills?.join(', ') || '—')
+    .replaceAll('{{offerRole}}', OFFER_EXTRACT_PLACEHOLDER)
+    .replaceAll('{{offerMission}}', OFFER_EXTRACT_PLACEHOLDER)
+    .replaceAll('{{offerCompanyFocus}}', OFFER_EXTRACT_PLACEHOLDER)
+    .replaceAll('{{offerSeniority}}', OFFER_EXTRACT_PLACEHOLDER)
+    .replaceAll('{{offerTopSkills}}', OFFER_EXTRACT_PLACEHOLDER);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -289,6 +307,21 @@ export default function GeneratePage() {
           <div className="mt-4 rounded-xl border border-red-200 bg-red-50/90 p-4">
             <Text variant="danger">{error}</Text>
           </div>
+        )}
+
+        {offerExtract && (offerExtract.role || offerExtract.mainMission) && (
+          <details className="mt-4 rounded-md border border-blue-200 bg-blue-50/60" open>
+            <summary className="cursor-pointer px-3 py-2 text-xs font-semibold uppercase tracking-wide text-blue-900">
+              Points clés extraits de l'offre (étape 1 du pipeline)
+            </summary>
+            <div className="border-t border-blue-200 px-3 py-2 text-xs text-gray-700 space-y-1">
+              <p><span className="font-semibold">Rôle :</span> {offerExtract.role || '—'}</p>
+              <p><span className="font-semibold">Mission :</span> {offerExtract.mainMission || '—'}</p>
+              <p><span className="font-semibold">Entreprise :</span> {offerExtract.companyFocus || '—'}</p>
+              <p><span className="font-semibold">Niveau :</span> {offerExtract.seniority || '—'}</p>
+              <p><span className="font-semibold">Compétences clés :</span> {offerExtract.topSkills?.join(', ') || '—'}</p>
+            </div>
+          </details>
         )}
 
         {result && (

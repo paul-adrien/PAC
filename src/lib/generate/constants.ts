@@ -7,48 +7,106 @@ export const PROVIDERS = ['ollama', 'claude'] as const;
 export type Provider = (typeof PROVIDERS)[number];
 
 export const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-export const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3';
+export const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'mistral-nemo';
+
+export const OFFER_EXTRACTION_PROMPT = `Tu analyses une offre d'emploi et extrais ses points clés sous forme JSON.
+
+OFFRE :
+Titre : {{jobTitle}}
+Entreprise : {{jobCompany}}
+Lieu : {{jobLocation}}
+Description : {{jobDescription}}
+Compétences demandées : {{jobSkills}}
+
+Renvoie UNIQUEMENT un objet JSON valide, sans texte avant ni après, sans markdown, sans triple backticks.
+
+Format attendu (chaque champ est obligatoire) :
+{
+  "role": "intitulé du poste, 5 à 8 mots",
+  "topSkills": ["compétence 1", "compétence 2", "compétence 3", "compétence 4", "compétence 5"],
+  "mainMission": "mission principale en une seule phrase de 15 mots maximum",
+  "companyFocus": "ce que fait l'entreprise en une phrase de 12 mots maximum",
+  "seniority": "niveau demandé : junior, confirmé, senior ou lead"
+}
+
+Règles :
+- Base-toi uniquement sur le texte de l'offre. N'invente rien.
+- Écris en français.
+- topSkills doit contenir exactement 5 éléments, en ordre de priorité.
+- Pas de phrase d'introduction, pas de commentaire. Uniquement le JSON.`;
 
 export const DEFAULT_PROMPTS: Record<GenerationType, string> = {
-  cv_header: `Tu es un expert en recrutement et rédaction de CV.
-À partir du profil du candidat et de l'offre d'emploi ci-dessous, rédige un en-tête de CV percutant et personnalisé.
+  cv_header: `TA TÂCHE : produire une version personnalisée du résumé de profil d'un candidat, adaptée à une offre.
 
-Règles :
-- Maximum 300 caractères
-- Mets en avant les compétences et expériences les plus pertinentes pour ce poste
-- Utilise un ton professionnel mais dynamique
-- Ne répète pas le titre du poste mot pour mot
-- Rédige en français sauf si l'offre est en anglais
+RÉSUMÉ DE PROFIL À ADAPTER (texte de référence — c'est ta base) :
+"""
+{{profileSummary}}
+"""
+
+POINTS CLÉS DE L'OFFRE VISÉE (pré-analysés, utilise-les pour orienter le contenu) :
+- Rôle : {{offerRole}}
+- Mission principale : {{offerMission}}
+- Entreprise : {{offerCompanyFocus}}
+- Niveau : {{offerSeniority}}
+- Compétences clés recherchées : {{offerTopSkills}}
+
+COMMENT FAIRE :
+1. Reproduis fidèlement la VOIX du résumé de référence :
+   - Même personne grammaticale : si le résumé utilise des verbes sans sujet explicite (« Intervient », « Habitué à », « Maîtrise », « Apprécie »), reste dans cette forme. Si le résumé utilise « je », utilise « je ». N'introduis jamais une personne différente.
+   - Même longueur (±15 %).
+   - Mêmes formulations, même vocabulaire, même rythme de phrases.
+2. Ajuste uniquement le contenu :
+   - Mets en avant les éléments du résumé qui correspondent aux points clés de l'offre.
+   - Tu peux réordonner les phrases et ajouter 1 à 2 touches ciblées (techno, domaine, nom de l'entreprise).
+   - Retire ou atténue les éléments non pertinents pour cette offre.
+3. Ne réécris pas de zéro : pars du texte de référence et ajuste-le.
+
+INTERDICTIONS ABSOLUES :
+- N'écris PAS une offre d'emploi. Interdit : « Vous serez responsable », « Nous offrons », « En tant que [rôle] chez nous », « Je rédige une offre ».
+- N'écris PAS une lettre de motivation. Interdit : « Madame, Monsieur », « Cordialement », « Je me permets ».
+- Pas de puces, pas d'astérisque, pas de sections (« Formation : », « Compétences : »), pas de markdown, pas de gras.
+- Pas de nom, prénom, email, téléphone, adresse, école, lien.
+- Pas de placeholder entre crochets ([Nom], [XYZ]).
+- Pas d'écriture inclusive parenthésée (« motivé(e) », « développeur/se »).
+- Pas de préambule (« Voici... », « Je serais ravi... »). Commence directement.
+- Pas de conclusion méta (« J'espère... », « N'hésitez pas... »).
+- Un seul paragraphe de prose continue, sans saut de ligne.
+- Français uniquement.
+
+Réponds UNIQUEMENT avec le nouveau résumé personnalisé, rien d'autre.`,
+
+  cover_letter: `Tu rédiges une lettre de motivation personnalisée, à partir du profil du candidat et de l'offre ci-dessous.
+
+CE QUE TU DOIS PRODUIRE :
+Exactement 3 à 4 paragraphes en prose continue, écrits à la première personne, en français, qui constituent le corps d'une lettre de motivation.
+
+STRUCTURE :
+- Paragraphe 1 : accroche courte, pourquoi cette offre / cette entreprise en particulier.
+- Paragraphe 2 : parcours — 1 à 2 expériences concrètes du profil qui répondent aux besoins de l'offre.
+- Paragraphe 3 : motivation — ce que tu apportes + ce que tu cherches.
+- Paragraphe 4 (optionnel) : conclusion courte avec invitation à un échange.
+
+RÈGLES STRICTES — toute violation invalide ta réponse :
+1. 3 à 4 paragraphes, pas plus. Séparés par une ligne vide.
+2. Uniquement le CORPS de la lettre. Pas de formule d'appel (« Madame, Monsieur, »), pas d'en-tête avec adresse/date, pas de signature, pas de « Cordialement ».
+3. Aucune puce, aucun astérisque, aucun titre de section, aucun markdown.
+4. N'INVENTE RIEN. Utilise uniquement les infos du PROFIL. Si une info manque, ne la mentionne pas.
+5. Pas de préambule (« Voici la lettre... », « Je serais ravi... »). Commence directement par la première phrase.
+6. Pas de conclusion méta (« J'espère... », « N'hésitez pas à me contacter... » est accepté, mais pas « Voici ma lettre », « En résumé »).
+7. Pas de reformulation brute de l'offre ni de phrases génériques (« votre entreprise leader sur son marché »).
+8. Longueur totale : 250 à 400 mots maximum.
+9. Langue : français uniquement.
 
 PROFIL DU CANDIDAT :
 {{profile}}
 
-OFFRE D'EMPLOI :
+OFFRE :
 Titre : {{jobTitle}}
 Entreprise : {{jobCompany}}
 Lieu : {{jobLocation}}
 Description : {{jobDescription}}
-Compétences demandées : {{jobSkills}}`,
+Compétences demandées : {{jobSkills}}
 
-  cover_letter: `Tu es un expert en rédaction de lettres de motivation professionnelles.
-À partir du profil du candidat et de l'offre d'emploi ci-dessous, rédige une lettre de motivation percutante et personnalisée.
-
-Règles :
-- Structure classique : accroche, parcours pertinent, motivation pour le poste/entreprise, conclusion avec appel à l'action
-- Mets en avant les expériences et compétences les plus pertinentes pour ce poste
-- Montre une compréhension de l'entreprise et du rôle
-- Ton professionnel mais authentique, pas de phrases génériques
-- Rédige en français sauf si l'offre est en anglais
-- Maximum 350 mots
-
-PROFIL DU CANDIDAT :
-{{profile}}
-
-OFFRE D'EMPLOI :
-Titre : {{jobTitle}}
-Entreprise : {{jobCompany}}
-Lieu : {{jobLocation}}
-Description : {{jobDescription}}
-Compétences demandées : {{jobSkills}}`,
+Réponds UNIQUEMENT avec les paragraphes de la lettre, rien d'autre.`,
   interview_prep: '',
 };

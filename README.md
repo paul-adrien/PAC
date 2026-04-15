@@ -89,8 +89,10 @@ ENCRYPTION_KEY=              # 32 caractères hex, pour chiffrer les clés API
 
 # Optionnel — fallback local
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3
+OLLAMA_MODEL=mistral-nemo   # recommandé : mistral-nemo (12B, ~7 GB, 16+ GB RAM) ou qwen2.5:7b-instruct (plus léger)
 ```
+
+> Llama3 8B par défaut est trop faible pour suivre les consignes de format des prompts — préférer `mistral-nemo` ou `qwen2.5:7b-instruct`. Installer avec `ollama pull mistral-nemo`.
 
 ### Base de données
 
@@ -108,12 +110,27 @@ Appliquer les migrations de [src/lib/supabase/migrations/](src/lib/supabase/migr
 
 ## Génération IA
 
-- 3 types : `cv_header`, `cover_letter`, `interview_prep`
-- Provider par défaut : Claude (`claude-sonnet-4-20250514`, 1024 tokens)
-- Fallback : Ollama local
+- 3 types : `cv_header` (paragraphe de présentation pour CV), `cover_letter` (lettre de motivation), `interview_prep`
+- Providers : Claude API (`claude-sonnet-4-20250514`, 1024 tokens) ou Ollama local (`mistral-nemo` par défaut), sélectionnable dans l'UI de génération
 - Limite : 50 générations par user et par jour
-- Les prompts sont templatés (`{{profile}}`, `{{jobTitle}}`, `{{jobCompany}}`, `{{jobDescription}}`, `{{jobSkills}}`) et éditables dans `/portal/settings`
+- Les prompts sont templatés (`{{profile}}`, `{{jobTitle}}`, `{{jobCompany}}`, `{{jobLocation}}`, `{{jobDescription}}`, `{{jobSkills}}`) et éditables directement sur la page de génération (stockés dans la table `prompts`)
+- Aperçu en direct du prompt final avec toutes les variables substituées sous le textarea
+
+### Convention `RÉSUMÉ_PROFIL` (recommandé)
+
+Dans `/portal/profile`, ajoute une section intitulée `RÉSUMÉ_PROFIL` contenant un paragraphe exemple de ton résumé de profil (ton, vocabulaire, structure que tu utilises habituellement) :
+
+```
+RÉSUMÉ_PROFIL :
+Ingénieur full-stack avec 5 ans d'expérience sur des produits SaaS B2B, je conçois
+et livre des applications web performantes de bout en bout. Chez Acme j'ai refondu
+le module de facturation utilisé par 10k clients. Je maîtrise TypeScript, Next.js,
+PostgreSQL et l'AWS serverless. Ce qui m'attire aujourd'hui, c'est...
+```
+
+Le prompt `cv_header` détecte cette section et l'utilise comme **modèle de référence** : il reprend ton ton et ton vocabulaire pour l'adapter à l'offre visée, au lieu d'écrire un paragraphe générique à partir de zéro. Si la section est absente, le prompt retombe sur un modèle standard.
 - L'historique est persisté dans la table `generations` et consultable via `/api/generations`
+- Erreurs API normalisées via `src/lib/errors/api-errors.ts` (messages user-friendly en français)
 
 La clé Claude est chiffrée (AES-256) côté serveur avant stockage dans `user_api_keys`.
 
