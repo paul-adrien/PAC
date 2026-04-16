@@ -1,12 +1,13 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { Job } from '@/lib/domain';
 import { useTranslation } from '@/lib/i18n';
 import { Text } from '@/components/ui/text';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { JobsFilters } from './JobsFilters';
 import { JobDetailPanel } from './JobDetailPanel';
+import { useJobsListStore } from '@/lib/store/jobs/jobs-list.store';
 
 interface Props {
   readonly jobs: Job[];
@@ -40,104 +41,19 @@ export function JobsList({
   appliedFilter,
 }: Props) {
   const { t } = useTranslation();
-  const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
-  const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [refreshedJobs, setRefreshedJobs] = useState<Map<string, Job>>(new Map());
-  const [extraJobs, setExtraJobs] = useState<Job[]>([]);
-  const replacementCursorRef = useRef(0);
+  const store = useJobsListStore();
 
-  const fetchReplacement = useCallback(async () => {
-    const offset = (page + 1) * perPage + replacementCursorRef.current;
-    replacementCursorRef.current += 1;
-    const params = new URLSearchParams({
-      offset: String(offset),
-      limit: '1',
-      sortKey,
-      sortDir,
-      search,
-      company: filterCompany,
-      source: filterSource,
-      unseen: unseenOnly ? '1' : '0',
-      ...(appliedFilter ? { applied: appliedFilter } : {}),
-    });
-    const res = await fetch(`/api/jobs/list?${params.toString()}`);
-    if (!res.ok) return;
-    const { jobs: newJobs } = (await res.json()) as { jobs: Job[] };
-    if (newJobs.length === 0) return;
-    setExtraJobs(prev => {
-      const existingIds = new Set([...jobs, ...prev].map(j => j.id));
-      const deduped = newJobs.filter(j => !existingIds.has(j.id));
-      return [...prev, ...deduped];
-    });
-  }, [page, perPage, sortKey, sortDir, search, filterCompany, filterSource, unseenOnly, appliedFilter, jobs]);
+  const filterParams = useMemo(() => ({
+    page, perPage, sortKey, sortDir, search,
+    filterCompany, filterSource, unseenOnly, appliedFilter,
+  }), [page, perPage, sortKey, sortDir, search, filterCompany, filterSource, unseenOnly, appliedFilter]);
 
-  const getJob = (job: Job) => refreshedJobs.get(job.id) ?? job;
+  useEffect(() => {
+    store.reset();
+  }, [page, sortKey, sortDir, search, filterCompany, filterSource, unseenOnly, appliedFilter]);
 
-  const refreshJob = useCallback(async (jobId: string) => {
-    const res = await fetch(`/api/jobs/detail?jobId=${jobId}`);
-    if (!res.ok) return;
-    const { job } = await res.json();
-    setRefreshedJobs(prev => new Map(prev).set(jobId, job));
-  }, []);
-
-  const isViewed = (job: Job) => job.viewedAt !== null || viewedIds.has(job.id);
-  const isApplied = (job: Job) => (job.appliedAt !== null || appliedIds.has(job.id)) && !dismissedIds.has(job.id);
-
-  const markAsViewed = useCallback((jobId: string) => {
-    setViewedIds(prev => new Set(prev).add(jobId));
-    fetch('/api/jobs/view', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobId }),
-    });
-  }, []);
-
-  const toggleApply = useCallback((job: Job) => {
-    const willApply = !isApplied(job);
-    if (willApply) {
-      setAppliedIds(prev => new Set(prev).add(job.id));
-    } else {
-      setAppliedIds(prev => { const n = new Set(prev); n.delete(job.id); return n; });
-    }
-    fetch('/api/jobs/apply', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sourceUrl: job.sourceUrl }),
-    });
-  }, [jobs, appliedIds]);
-
-  const dismissJob = useCallback((job: Job) => {
-    setDismissedIds(prev => new Set(prev).add(job.id));
-    setExpandedId(null);
-    fetchReplacement();
-    fetch('/api/jobs/dismiss', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobId: job.id }),
-    });
-  }, [fetchReplacement]);
-
-  const [dismissedCompanies, setDismissedCompanies] = useState<Set<string>>(new Set());
-
-  const dismissCompany = useCallback((company: string) => {
-    setDismissedCompanies(prev => new Set(prev).add(company));
-    setExpandedId(null);
-    const toReplace = [...jobs, ...extraJobs].filter(
-      j => j.company === company && !dismissedIds.has(j.id),
-    ).length;
-    for (let i = 0; i < toReplace; i++) fetchReplacement();
-    fetch('/api/companies/dismiss', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ company }),
-    });
-  }, [jobs, extraJobs, dismissedIds, fetchReplacement]);
-
-  const visibleJobs = [...jobs, ...extraJobs].filter(
-    j => !dismissedIds.has(j.id) && !dismissedCompanies.has(j.company),
-  );
+  const visibleJobs = store.visibleJobs(jobs);
+  const allJobs = [...jobs, ...store.extraJobs];
 
   const columns: Column<Job>[] = [
     {
@@ -147,12 +63,12 @@ export function JobsList({
       className: 'max-w-[280px]',
       render: job => (
         <span className="group/title relative flex items-center gap-2">
-          {isApplied(job) && (
+          {store.isApplied(job) && (
             <span className="shrink-0 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
               Candidaté
             </span>
           )}
-          {job.details && !isApplied(job) && (
+          {job.details && !store.isApplied(job) && (
             <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-green-500" title="Enrichie" />
           )}
           <a
@@ -161,9 +77,9 @@ export function JobsList({
             rel="noopener noreferrer"
             onClick={e => {
               e.stopPropagation();
-              if (!isViewed(job)) markAsViewed(job.id);
+              if (!store.isViewed(job)) store.markAsViewed(job.id);
             }}
-            className={`truncate hover:underline ${isViewed(job) ? 'text-gray-500' : 'font-semibold text-orange-800'}`}
+            className={`truncate hover:underline ${store.isViewed(job) ? 'text-gray-500' : 'font-semibold text-orange-800'}`}
           >
             {job.title}
           </a>
@@ -203,7 +119,7 @@ export function JobsList({
       render: job => (
         <button
           type="button"
-          onClick={e => { e.stopPropagation(); dismissJob(job); }}
+          onClick={e => { e.stopPropagation(); store.dismissJob(job, filterParams, jobs); }}
           className="cursor-pointer rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
           title={t('jobs.detail.dismiss', { defaultValue: 'Pas intéressé' })}
         >
@@ -241,24 +157,25 @@ export function JobsList({
           data={visibleJobs}
           columns={columns}
           rowKey={job => job.id}
-          totalCount={totalCount - dismissedIds.size}
+          totalCount={totalCount - store.dismissedIds.size}
           page={page}
           perPage={perPage}
           sortKey={sortKey}
           sortDir={sortDir}
           emptyMessage={t('jobs.list.empty', { defaultValue: 'Aucune offre trouvée.' })}
-          expandedKey={expandedId}
-          onRowClick={job => setExpandedId(prev => (prev === job.id ? null : job.id))}
+          expandedKey={store.expandedId}
+          onRowClick={job => store.toggleExpandedId(job.id)}
+          skeletonCount={store.loadingReplacements}
           renderExpanded={job => {
-            const current = getJob(job);
+            const current = store.getJob(job);
             return (
             <JobDetailPanel
               job={current}
-              isApplied={isApplied(current)}
-              onToggleApply={() => toggleApply(current)}
-              onRefresh={() => refreshJob(job.id)}
-              onDismissCompany={() => dismissCompany(current.company)}
-              onOpenLink={() => { if (!isViewed(current)) markAsViewed(current.id); }}
+              isApplied={store.isApplied(current)}
+              onToggleApply={() => store.toggleApply(current)}
+              onRefresh={() => store.refreshJob(job.id)}
+              onDismissCompany={() => store.dismissCompany(current.company, allJobs, filterParams, jobs)}
+              onOpenLink={() => { if (!store.isViewed(current)) store.markAsViewed(current.id); }}
             />
             );
           }}

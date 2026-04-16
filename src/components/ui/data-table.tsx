@@ -25,6 +25,7 @@ interface Props<T> {
   readonly expandedKey?: string | null;
   readonly onRowClick?: (row: T) => void;
   readonly renderExpanded?: (row: T) => ReactNode;
+  readonly skeletonCount?: number;
 }
 
 function updateParams(
@@ -53,6 +54,7 @@ export function DataTable<T>({
   expandedKey,
   onRowClick,
   renderExpanded,
+  skeletonCount = 0,
 }: Props<T>) {
   const router = useRouter();
   const pathname = usePathname();
@@ -131,6 +133,15 @@ export function DataTable<T>({
                 </>
               );
             })}
+            {Array.from({ length: skeletonCount }, (_, i) => (
+              <tr key={`skeleton-${i}`} className="border-b border-orange-50 animate-pulse">
+                {columns.map(col => (
+                  <td key={col.key} className={`px-4 py-3 ${col.className ?? ''}`}>
+                    <div className="h-4 w-3/4 rounded bg-gray-200/70" />
+                  </td>
+                ))}
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
