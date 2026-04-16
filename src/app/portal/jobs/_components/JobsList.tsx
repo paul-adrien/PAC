@@ -42,6 +42,12 @@ export function JobsList({
 }: Props) {
   const { t } = useTranslation();
   const store = useJobsListStore();
+  const viewedIds = useJobsListStore(s => s.viewedIds);
+  const appliedIds = useJobsListStore(s => s.appliedIds);
+  const dismissedIds = useJobsListStore(s => s.dismissedIds);
+
+  const isViewed = (job: Job) => job.viewedAt !== null || viewedIds.has(job.id);
+  const isApplied = (job: Job) => (job.appliedAt !== null || appliedIds.has(job.id)) && !dismissedIds.has(job.id);
 
   const filterParams = useMemo(() => ({
     page, perPage, sortKey, sortDir, search,
@@ -63,12 +69,12 @@ export function JobsList({
       className: 'max-w-[280px]',
       render: job => (
         <span className="group/title relative flex items-center gap-2">
-          {store.isApplied(job) && (
+          {isApplied(job) && (
             <span className="shrink-0 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
               Candidaté
             </span>
           )}
-          {job.details && !store.isApplied(job) && (
+          {job.details && !isApplied(job) && (
             <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-green-500" title="Enrichie" />
           )}
           <a
@@ -77,9 +83,9 @@ export function JobsList({
             rel="noopener noreferrer"
             onClick={e => {
               e.stopPropagation();
-              if (!store.isViewed(job)) store.markAsViewed(job.id);
+              if (!isViewed(job)) store.markAsViewed(job.id);
             }}
-            className={`truncate hover:underline ${store.isViewed(job) ? 'text-gray-500' : 'font-semibold text-orange-800'}`}
+            className={`truncate hover:underline ${isViewed(job) ? 'text-gray-500' : 'font-semibold text-orange-800'}`}
           >
             {job.title}
           </a>
@@ -171,11 +177,11 @@ export function JobsList({
             return (
             <JobDetailPanel
               job={current}
-              isApplied={store.isApplied(current)}
+              isApplied={isApplied(current)}
               onToggleApply={() => store.toggleApply(current)}
               onRefresh={() => store.refreshJob(job.id)}
               onDismissCompany={() => store.dismissCompany(current.company, allJobs, filterParams, jobs)}
-              onOpenLink={() => { if (!store.isViewed(current)) store.markAsViewed(current.id); }}
+              onOpenLink={() => { if (!isViewed(current)) store.markAsViewed(current.id); }}
             />
             );
           }}

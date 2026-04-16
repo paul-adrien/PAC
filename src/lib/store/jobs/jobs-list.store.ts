@@ -22,7 +22,6 @@ type JobsListState = {
   refreshedJobs: Map<string, Job>;
   extraJobs: Job[];
   loadingReplacements: number;
-  replacementCursor: number;
 
   setExpandedId: (id: string | null) => void;
   toggleExpandedId: (id: string) => void;
@@ -32,8 +31,6 @@ type JobsListState = {
   dismissCompany: (company: string, allJobs: Job[], params: FilterParams, initialJobs: Job[]) => void;
   refreshJob: (jobId: string) => Promise<void>;
   getJob: (job: Job) => Job;
-  isViewed: (job: Job) => boolean;
-  isApplied: (job: Job) => boolean;
   visibleJobs: (initialJobs: Job[]) => Job[];
   reset: () => void;
 };
@@ -47,18 +44,12 @@ const initialState = {
   refreshedJobs: new Map<string, Job>(),
   extraJobs: [] as Job[],
   loadingReplacements: 0,
-  replacementCursor: 0,
 };
 
-async function fetchReplacementJob(
-  params: FilterParams,
-  offset: number,
-  initialJobs: Job[],
-  existingExtra: Job[],
-): Promise<Job | null> {
-  const qs = new URLSearchParams({
-    offset: String(offset),
-    limit: '1',
+let queue = Promise.resolve();
+
+function buildQuery(params: FilterParams) {
+  return new URLSearchParams({
     sortKey: params.sortKey,
     sortDir: params.sortDir,
     search: params.search,
@@ -67,13 +58,33 @@ async function fetchReplacementJob(
     unseen: params.unseenOnly ? '1' : '0',
     ...(params.appliedFilter ? { applied: params.appliedFilter } : {}),
   });
+}
+
+function computeVisibleCount(state: JobsListState, initialJobs: Job[]) {
+  const { extraJobs, dismissedIds, dismissedCompanies } = state;
+  return [...initialJobs, ...extraJobs].filter(
+    j => !dismissedIds.has(j.id) && !dismissedCompanies.has(j.company),
+  ).length;
+}
+
+async function fetchReplacementAt(
+  params: FilterParams,
+  offset: number,
+  knownIds: Set<string>,
+): Promise<Job | null> {
+  const qs = buildQuery(params);
+  qs.set('offset', String(offset));
+  qs.set('limit', '1');
   const res = await fetch(`/api/jobs/list?${qs.toString()}`);
   if (!res.ok) return null;
-  const { jobs: newJobs } = (await res.json()) as { jobs: Job[] };
-  if (newJobs.length === 0) return null;
-  const existingIds = new Set([...initialJobs, ...existingExtra].map(j => j.id));
-  const deduped = newJobs.filter(j => !existingIds.has(j.id));
-  return deduped[0] ?? null;
+  const { jobs } = (await res.json()) as { jobs: Job[] };
+  if (jobs.length === 0) return null;
+  const fresh = jobs.filter(j => !knownIds.has(j.id));
+  return fresh[0] ?? null;
+}
+
+function allKnownIds(state: JobsListState, initialJobs: Job[]) {
+  return new Set([...initialJobs, ...state.extraJobs].map(j => j.id));
 }
 
 export const useJobsListStore = create<JobsListState>((set, get) => ({
@@ -116,18 +127,19 @@ export const useJobsListStore = create<JobsListState>((set, get) => ({
       dismissedIds: new Set(s.dismissedIds).add(job.id),
       expandedId: null,
       loadingReplacements: s.loadingReplacements + 1,
-      replacementCursor: s.replacementCursor + 1,
     }));
 
-    const offset = (params.page + 1) * params.perPage + get().replacementCursor - 1;
+    queue = queue.then(async () => {
+      await fetch('/api/jobs/dismiss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: job.id }),
+      });
 
-    fetch('/api/jobs/dismiss', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobId: job.id }),
-    });
+      const state = get();
+      const offset = params.page * params.perPage + computeVisibleCount(state, initialJobs);
+      const newJob = await fetchReplacementAt(params, offset, allKnownIds(state, initialJobs));
 
-    fetchReplacementJob(params, offset, initialJobs, get().extraJobs).then(newJob => {
       set(s => ({
         loadingReplacements: Math.max(0, s.loadingReplacements - 1),
         ...(newJob ? { extraJobs: [...s.extraJobs, newJob] } : {}),
@@ -143,24 +155,26 @@ export const useJobsListStore = create<JobsListState>((set, get) => ({
       dismissedCompanies: new Set(s.dismissedCompanies).add(company),
       expandedId: null,
       loadingReplacements: s.loadingReplacements + toReplace,
-      replacementCursor: s.replacementCursor + toReplace,
     }));
 
-    fetch('/api/companies/dismiss', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ company }),
-    });
+    queue = queue.then(async () => {
+      await fetch('/api/companies/dismiss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ company }),
+      });
 
-    const baseOffset = (params.page + 1) * params.perPage + get().replacementCursor - toReplace;
-    for (let i = 0; i < toReplace; i++) {
-      fetchReplacementJob(params, baseOffset + i, initialJobs, get().extraJobs).then(newJob => {
+      for (let i = 0; i < toReplace; i++) {
+        const state = get();
+        const offset = params.page * params.perPage + computeVisibleCount(state, initialJobs);
+        const newJob = await fetchReplacementAt(params, offset, allKnownIds(state, initialJobs));
+
         set(s => ({
           loadingReplacements: Math.max(0, s.loadingReplacements - 1),
           ...(newJob ? { extraJobs: [...s.extraJobs, newJob] } : {}),
         }));
-      });
-    }
+      }
+    });
   },
 
   refreshJob: async (jobId) => {
@@ -172,13 +186,6 @@ export const useJobsListStore = create<JobsListState>((set, get) => ({
 
   getJob: (job) => get().refreshedJobs.get(job.id) ?? job,
 
-  isViewed: (job) => job.viewedAt !== null || get().viewedIds.has(job.id),
-
-  isApplied: (job) => {
-    const { appliedIds, dismissedIds } = get();
-    return (job.appliedAt !== null || appliedIds.has(job.id)) && !dismissedIds.has(job.id);
-  },
-
   visibleJobs: (initialJobs) => {
     const { extraJobs, dismissedIds, dismissedCompanies } = get();
     return [...initialJobs, ...extraJobs].filter(
@@ -186,5 +193,8 @@ export const useJobsListStore = create<JobsListState>((set, get) => ({
     );
   },
 
-  reset: () => set(initialState),
+  reset: () => {
+    queue = Promise.resolve();
+    set(initialState);
+  },
 }));
