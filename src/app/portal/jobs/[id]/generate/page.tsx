@@ -37,23 +37,43 @@ export default function GeneratePage() {
 
   const [job, setJob] = useState<JobSummary | null>(null);
   const [profile, setProfile] = useState<string>('');
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<GenerationType>('cv_header');
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
 
   useEffect(() => {
-    fetch(`/api/jobs/detail?jobId=${jobId}`)
-      .then(r => r.json())
-      .then(json => {
-        if (json.job) setJob(json.job);
-      });
-    fetch('/api/profile')
-      .then(r => r.json())
-      .then(json => {
-        if (typeof json.content === 'string') setProfile(json.content);
-      });
+    Promise.all([
+      fetch(`/api/jobs/detail?jobId=${jobId}`)
+        .then(r => r.json())
+        .then(json => { if (json.job) setJob(json.job); }),
+      fetch('/api/profile')
+        .then(r => r.json())
+        .then(json => { if (typeof json.content === 'string') setProfile(json.content); }),
+    ]).finally(() => setLoading(false));
   }, [jobId]);
 
   const tab = TABS.find(t => t.key === activeTab) ?? TABS[0];
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-6 animate-pulse">
+        <div className="flex items-center gap-3">
+          <div className="h-4 w-12 rounded bg-orange-100" />
+          <div className="h-6 w-64 rounded bg-gray-200" />
+        </div>
+        <div className="flex gap-1 border-b border-orange-200">
+          <div className="h-9 w-32 rounded bg-gray-100" />
+          <div className="h-9 w-40 rounded bg-gray-100" />
+        </div>
+        <div className="rounded-2xl border border-orange-200/60 bg-white/90 px-6 py-5 shadow-lg backdrop-blur space-y-4">
+          <div className="h-5 w-48 rounded bg-gray-200" />
+          <div className="h-4 w-72 rounded bg-gray-100" />
+          <div className="h-32 w-full rounded bg-gray-100" />
+          <div className="h-10 w-full rounded bg-gray-100" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
