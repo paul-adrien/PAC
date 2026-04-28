@@ -17,6 +17,8 @@ type Row = {
   viewed_at: string | null;
   applied_at: string | null;
   dismissed_at: string | null;
+  auto_dismissed_at: string | null;
+  auto_dismissed_reason: string | null;
   details: Record<string, unknown> | null;
   raw: unknown;
   created_at: string;
@@ -39,6 +41,8 @@ function rowToJob(r: Row): Job {
     viewedAt: r.viewed_at,
     appliedAt: r.applied_at,
     dismissedAt: r.dismissed_at,
+    autoDismissedAt: r.auto_dismissed_at,
+    autoDismissedReason: r.auto_dismissed_reason,
     details: (r.details as Job['details']) ?? null,
     raw: r.raw,
     createdAt: r.created_at,
@@ -86,6 +90,7 @@ export async function GET(req: Request) {
   if (appliedFilter === 'yes') query = query.not('applied_at', 'is', null);
   if (appliedFilter === 'no') query = query.is('applied_at', null);
   query = query.is('dismissed_at', null);
+  query = query.is('auto_dismissed_at', null);
   for (const c of dismissedCompanies) query = query.neq('company', c);
   if (search)
     query = query.or(

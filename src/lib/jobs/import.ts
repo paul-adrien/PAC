@@ -1,6 +1,9 @@
 import { z } from 'zod';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { parseJobExportJSON, type JobInput, type JobNormalized } from './schema';
 import { buildNormalized } from './buildNormalized';
+import { applyFilter } from './filter';
+import { fetchFilterRules } from './filter-rules';
 
 const ImportResultSchema = z.object({
   total_in_file: z.number(),
@@ -8,6 +11,7 @@ const ImportResultSchema = z.object({
   skipped: z.number(),
   unique_in_file: z.number(),
   inserted: z.number(),
+  auto_dismissed: z.number(),
   updated_last_seen: z.number(),
 });
 
@@ -64,7 +68,7 @@ export function previewJobsJSON(jsonText: string): PreviewResult {
 }
 
 export async function importJobsJSON(params: {
-  supabase: any;
+  supabase: SupabaseClient;
   userId: string;
   jsonText: string;
 }): Promise<ImportResult> {
@@ -74,6 +78,8 @@ export async function importJobsJSON(params: {
   const validInputs = inputs.filter(isValidInput);
   const normalizedAll = validInputs.map(buildNormalized);
   const normalized = dedupByFingerprint(normalizedAll);
+
+  const rules = await fetchFilterRules(supabase, userId);
 
   const fingerprints = normalized.map(r => r.fingerprint);
 
@@ -85,23 +91,32 @@ export async function importJobsJSON(params: {
 
   if (existingErr) throw existingErr;
 
-  const existing = new Set<string>((existingRows ?? []).map((r: any) => r.fingerprint));
+  const existing = new Set<string>((existingRows ?? []).map((r: { fingerprint: string }) => r.fingerprint));
 
   const toInsert = normalized.filter(r => !existing.has(r.fingerprint));
   const toUpdate = normalized.filter(r => existing.has(r.fingerprint));
 
+  let autoDismissedCount = 0;
+
   if (toInsert.length) {
-    const payload = toInsert.map(r => ({
-      user_id: userId,
-      fingerprint: r.fingerprint,
-      title: r.title,
-      company: r.company,
-      location: r.location,
-      source: r.source,
-      source_url: r.source_url,
-      scraped_at: r.scraped_at,
-      raw: r.raw ?? null,
-    }));
+    const now = new Date().toISOString();
+    const payload = toInsert.map(r => {
+      const decision = applyFilter(rules, r.title);
+      if (decision.dismissed) autoDismissedCount += 1;
+      return {
+        user_id: userId,
+        fingerprint: r.fingerprint,
+        title: r.title,
+        company: r.company,
+        location: r.location,
+        source: r.source,
+        source_url: r.source_url,
+        scraped_at: r.scraped_at,
+        raw: r.raw ?? null,
+        auto_dismissed_at: decision.dismissed ? now : null,
+        auto_dismissed_reason: decision.dismissed ? decision.reason : null,
+      };
+    });
 
     const { error: insErr } = await supabase.from('jobs').insert(payload);
     if (insErr) throw insErr;
@@ -126,6 +141,7 @@ export async function importJobsJSON(params: {
     skipped: inputs.length - validInputs.length,
     unique_in_file: normalized.length,
     inserted: toInsert.length,
+    auto_dismissed: autoDismissedCount,
     updated_last_seen: toUpdate.length,
   });
 }

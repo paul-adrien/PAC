@@ -10,11 +10,13 @@ export default function NewJobPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [autoDismissedReason, setAutoDismissedReason] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setAutoDismissedReason(null);
 
     const form = new FormData(e.currentTarget);
     const title = (form.get('title') as string).trim();
@@ -40,6 +42,12 @@ export default function NewJobPage() {
 
       if (!res.ok || !json.ok) {
         setError(json.error ?? 'Erreur');
+        return;
+      }
+
+      if (json.autoDismissed) {
+        setAutoDismissedReason(json.autoDismissedReason ?? 'auto_dismissed');
+        setLoading(false);
         return;
       }
 
@@ -104,6 +112,31 @@ export default function NewJobPage() {
         {error && (
           <div className="rounded-xl border border-red-200 bg-red-50/90 p-4">
             <Text variant="danger">{error}</Text>
+          </div>
+        )}
+
+        {autoDismissedReason && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-4 space-y-2">
+            <Text variant="sm" className="font-medium text-amber-900">
+              Offre ajoutée mais auto-masquée par tes règles de filtrage
+              {autoDismissedReason.startsWith('exclude:')
+                ? ` (mot exclu : « ${autoDismissedReason.slice('exclude:'.length)} »)`
+                : autoDismissedReason === 'no_include_match'
+                  ? ' (aucun mot inclus ne matche)'
+                  : ''}
+            </Text>
+            <div className="flex gap-3">
+              <a href="/portal/filters" className="text-sm text-orange-900 underline hover:text-orange-700">
+                Voir / modifier les règles
+              </a>
+              <button
+                type="button"
+                onClick={() => router.push('/portal/jobs')}
+                className="text-sm text-gray-600 hover:text-gray-800"
+              >
+                Retour à la liste
+              </button>
+            </div>
           </div>
         )}
 

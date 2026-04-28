@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { buildNormalized } from '@/lib/jobs/buildNormalized';
+import { applyFilter } from '@/lib/jobs/filter';
+import { fetchFilterRules } from '@/lib/jobs/filter-rules';
 
 export async function POST(req: Request) {
   const supabase = createSupabaseServerClient();
@@ -38,6 +40,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Cette offre existe déjà' }, { status: 409 });
   }
 
+  const rules = await fetchFilterRules(supabase as never, auth.user.id);
+  const decision = applyFilter(rules, normalized.title);
+  const now = new Date().toISOString();
+
   const { error: insErr } = await supabase.from('jobs').insert({
     user_id: auth.user.id,
     fingerprint: normalized.fingerprint,
@@ -48,11 +54,17 @@ export async function POST(req: Request) {
     source_url: normalized.source_url,
     scraped_at: normalized.scraped_at,
     raw: normalized.raw ?? null,
+    auto_dismissed_at: decision.dismissed ? now : null,
+    auto_dismissed_reason: decision.dismissed ? decision.reason : null,
   });
 
   if (insErr) {
     return NextResponse.json({ error: insErr.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    autoDismissed: decision.dismissed,
+    autoDismissedReason: decision.dismissed ? decision.reason : null,
+  });
 }

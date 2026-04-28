@@ -25,6 +25,7 @@
   "common.password": "Mot de passe",
   "common.see": "Voir",
   "portal.header.appName": "PAC",
+  "portal.header.filters": "Filtres",
   "portal.header.jobs": "Offres",
   "portal.header.logout": "Déconnexion",
   "portal.header.navLabel": "Navigation principale",

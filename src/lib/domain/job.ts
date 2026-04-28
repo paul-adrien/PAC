@@ -30,6 +30,8 @@ export interface Job {
   viewedAt: ISODateTime | null;
   appliedAt: ISODateTime | null;
   dismissedAt: ISODateTime | null;
+  autoDismissedAt: ISODateTime | null;
+  autoDismissedReason: string | null;
 
   details: JobDetails | null;
   raw: unknown;
