@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AuthCard } from '@/app/auth/_components/AuthCard';
 import { useAuthStore } from '@/lib/store/auth/auth.store';
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/lib/i18n';
 import { Text } from '@/components/ui/text';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useTranslation();
@@ -71,5 +71,13 @@ export default function LoginPage() {
         </Link>
       </Text>
     </AuthCard>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }
