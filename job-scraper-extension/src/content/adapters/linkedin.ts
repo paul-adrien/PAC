@@ -1,7 +1,8 @@
 import type { JobOffer } from '../../shared/types';
+import { scrapeLinkedInJobDetail } from './linkedin-detail';
 import type { ScanContext, SiteAdapter } from './types';
 
-export function getLinkedInScrollContainerFromCard(): HTMLElement | null {
+function getScrollContainer(): HTMLElement | null {
   const card = document.querySelector('li[data-occludable-job-id]') as HTMLElement | null;
   if (!card) return null;
 
@@ -19,7 +20,7 @@ export function getLinkedInScrollContainerFromCard(): HTMLElement | null {
   return (document.scrollingElement as HTMLElement | null) ?? null;
 }
 
-export function getLinkedInListSignature(): string {
+function getListSignature(): string {
   const ids = Array.from(document.querySelectorAll('li[data-occludable-job-id]'))
     .slice(0, 5)
     .map(el => (el as HTMLElement).getAttribute('data-occludable-job-id') || '')
@@ -28,7 +29,11 @@ export function getLinkedInListSignature(): string {
   return ids || 'empty';
 }
 
-export function clickLinkedInNextPage(): boolean {
+function countCards(): number {
+  return document.querySelectorAll('li[data-occludable-job-id]').length;
+}
+
+function clickNextPage(): boolean {
   const btn = document.querySelector(
     'button.jobs-search-pagination__button--next',
   ) as HTMLButtonElement | null;
@@ -53,30 +58,34 @@ function text(el: Element | null | undefined): string | null {
   return cleanText(el?.textContent ?? null);
 }
 
-function canonicalLinkedInJobUrl(href: string, baseUrl: string): string {
+function canonicalDetailUrl(href: string): string | null {
   try {
-    const u = new URL(href, baseUrl);
+    const u = new URL(href);
     const m = u.pathname.match(/\/jobs\/view\/(\d+)/);
     if (m?.[1]) return `https://www.linkedin.com/jobs/view/${m[1]}/`;
-    u.search = '';
-    u.hash = '';
-    return u.toString();
+    return null;
   } catch {
-    return baseUrl;
+    return null;
   }
+}
+
+function matchesListing(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.hostname.endsWith('linkedin.com') && u.pathname.startsWith('/jobs');
+  } catch {
+    return false;
+  }
+}
+
+function matchesDetailUrl(url: string): boolean {
+  return canonicalDetailUrl(url) !== null;
 }
 
 export const linkedinAdapter: SiteAdapter = {
   source: 'linkedin',
 
-  matches: (ctx: ScanContext) => {
-    try {
-      const u = new URL(ctx.url);
-      return u.hostname.endsWith('linkedin.com') && u.pathname.startsWith('/jobs');
-    } catch {
-      return false;
-    }
-  },
+  matches: (ctx: ScanContext) => matchesListing(ctx.url),
 
   scanVisibleCards: (ctx: ScanContext): JobOffer[] => {
     const { url, scrapedAt, options } = ctx;
@@ -150,7 +159,8 @@ export const linkedinAdapter: SiteAdapter = {
 
       const dateText = text(card.querySelector('.job-card-container__footer-item')) ?? null;
 
-      const sourceUrl = canonicalLinkedInJobUrl(titleLink?.getAttribute('href') ?? url, url);
+      const href = titleLink?.getAttribute('href') ?? url;
+      const sourceUrl = canonicalDetailUrl(href) ?? new URL(href, url).toString();
 
       return {
         title,
@@ -163,4 +173,14 @@ export const linkedinAdapter: SiteAdapter = {
       };
     });
   },
+
+  paginationMode: 'infinite-scroll',
+  getScrollContainer,
+  getListSignature,
+  countCards,
+  clickNextPage,
+
+  matchesDetailUrl,
+  canonicalDetailUrl,
+  scrapeDetail: scrapeLinkedInJobDetail,
 };

@@ -105,7 +105,11 @@ function setStatus(text: string) {
   if (el) el.textContent = text;
 }
 
-async function postImport(): Promise<{ ok: boolean; result?: { inserted: number; updated_last_seen: number }; error?: string }> {
+async function postImport(): Promise<{
+  ok: boolean;
+  result?: { inserted: number; updated_last_seen: number };
+  error?: string;
+}> {
   await saveSettings();
   const apiUrl = getApiUrl();
   const token = getApiToken();
@@ -141,7 +145,9 @@ async function onSendClick() {
   try {
     const json = await postImport();
     if (json.ok && json.result) {
-      setStatus(`Importé : ${json.result.inserted} nouvelles, ${json.result.updated_last_seen} maj`);
+      setStatus(
+        `Importé : ${json.result.inserted} nouvelles, ${json.result.updated_last_seen} maj`,
+      );
     } else {
       setStatus(json.error ?? 'Erreur API');
     }
@@ -277,9 +283,19 @@ async function onEnrichClick() {
 function getCanonicalJobUrl(tabUrl: string): string | null {
   try {
     const u = new URL(tabUrl);
-    const m = u.pathname.match(/\/jobs\/view\/(\d+)/);
-    if (m?.[1]) return `https://www.linkedin.com/jobs/view/${m[1]}/`;
-  } catch {}
+
+    if (u.hostname.endsWith('linkedin.com')) {
+      const m = /\/jobs\/view\/(\d+)/.exec(u.pathname);
+      if (m?.[1]) return `https://www.linkedin.com/jobs/view/${m[1]}/`;
+    }
+
+    if (u.hostname === 'www.welcometothejungle.com') {
+      const m = /^\/fr\/companies\/([^/]+)\/jobs\/([^/]+)/.exec(u.pathname);
+      if (m) return `https://www.welcometothejungle.com/fr/companies/${m[1]}/jobs/${m[2]}`;
+    }
+  } catch {
+    /* ignore */
+  }
   return null;
 }
 
@@ -293,7 +309,7 @@ async function onApplyClick() {
     const jobUrl = tab?.url ? getCanonicalJobUrl(tab.url) : null;
 
     if (!jobUrl) {
-      if (statusEl) statusEl.textContent = "Pas sur une page d'offre LinkedIn";
+      if (statusEl) statusEl.textContent = "Pas sur une page d'offre supportée";
       return;
     }
 
@@ -313,7 +329,8 @@ async function onApplyClick() {
     const json = await res.json();
 
     if (res.ok && json.ok) {
-      if (statusEl) statusEl.textContent = json.applied ? 'Candidature enregistrée !' : 'Candidature retirée';
+      if (statusEl)
+        statusEl.textContent = json.applied ? 'Candidature enregistrée !' : 'Candidature retirée';
     } else {
       if (statusEl) statusEl.textContent = json.error ?? 'Erreur API';
     }
@@ -335,7 +352,7 @@ async function onDismissClick() {
     const jobUrl = tab?.url ? getCanonicalJobUrl(tab.url) : null;
 
     if (!jobUrl) {
-      if (statusEl) statusEl.textContent = "Pas sur une page d'offre LinkedIn";
+      if (statusEl) statusEl.textContent = "Pas sur une page d'offre supportée";
       return;
     }
 
