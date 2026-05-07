@@ -1,8 +1,13 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useTranslation } from '@/lib/i18n';
+import {
+  buildFiltersQuery,
+  hasNonDefaultFilters,
+  useJobsFiltersStore,
+} from '@/lib/store/jobs/jobs-filters.store';
 
 interface Props {
   readonly companies: string[];
@@ -41,6 +46,31 @@ export function JobsFilters({
   const searchParams = useSearchParams();
   const searchRef = useRef<HTMLInputElement>(null);
   const [searchDirty, setSearchDirty] = useState(false);
+  const didHydrate = useRef(false);
+
+  useEffect(() => {
+    const urlFilters = {
+      search,
+      company: filterCompany,
+      source: filterSource,
+      unseen: unseenOnly,
+      applied: appliedFilter,
+    };
+
+    if (!didHydrate.current) {
+      didHydrate.current = true;
+
+      if (!hasNonDefaultFilters(urlFilters)) {
+        const saved = useJobsFiltersStore.getState();
+        if (hasNonDefaultFilters(saved)) {
+          router.replace(`${pathname}?${buildFiltersQuery(saved).toString()}`);
+          return;
+        }
+      }
+    }
+
+    useJobsFiltersStore.getState().set(urlFilters);
+  }, [search, filterCompany, filterSource, unseenOnly, appliedFilter, pathname, router]);
 
   const navigate = (updates: Record<string, string | undefined>) => {
     const qs = updateParams(searchParams, { ...updates, page: '0' });
@@ -53,8 +83,18 @@ export function JobsFilters({
     setSearchDirty(false);
   };
 
-  const hasFilters =
-    filterCompany || filterSource || search || unseenOnly || appliedFilter;
+  const onReset = () => {
+    useJobsFiltersStore.getState().reset();
+    navigate({
+      company: undefined,
+      source: undefined,
+      search: undefined,
+      unseen: undefined,
+      applied: undefined,
+    });
+  };
+
+  const hasFilters = filterCompany || filterSource || search || unseenOnly || appliedFilter;
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -138,15 +178,7 @@ export function JobsFilters({
       {hasFilters && (
         <button
           type="button"
-          onClick={() =>
-            navigate({
-              company: undefined,
-              source: undefined,
-              search: undefined,
-              unseen: undefined,
-              applied: undefined,
-            })
-          }
+          onClick={onReset}
           className="text-sm text-orange-700 underline hover:text-orange-900"
         >
           {t('jobs.list.clearFilters', { defaultValue: 'Réinitialiser' })}
